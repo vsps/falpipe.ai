@@ -16,8 +16,8 @@
   --color-warn: #fbbf24;
   --color-bad: #f87171;
 
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Consolas", "Menlo", "Courier New", monospace;
+  --font-sans: "Google Sans Code", "Consolas", "Menlo", "Courier New", monospace;
+  --font-mono: "Google Sans Code", "Consolas", "Menlo", "Courier New", monospace;
 
   --text-xs: 11px;
   --text-sm: 12px;
