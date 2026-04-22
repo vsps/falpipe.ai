@@ -1,0 +1,184 @@
+{
+  "family": "Kling 3",
+  "category": "fal.ai/Video Generation",
+  "nodes": [
+    {
+      "id": "kling3_std_txt2vid",
+      "name": "Kling 3 Standard (txt2vid)",
+      "endpoint": "fal-ai/kling-video/v3/standard/text-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] },
+        { "name": "cfg_scale", "label": "CFG Scale", "type": "float", "api_field": "cfg_scale", "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05 }
+      ]
+    },
+    {
+      "id": "kling3_std_img2vid",
+      "name": "Kling 3 Standard (img2vid)",
+      "endpoint": "fal-ai/kling-video/v3/standard/image-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "start_image", "data_type": "IMAGE", "api_field": "start_image_url", "required": true },
+        { "name": "end_image", "data_type": "IMAGE", "api_field": "end_image_url" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "start", "api_field": "start_image_url", "max": 1 },
+        { "role": "end", "api_field": "end_image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] },
+        { "name": "cfg_scale", "label": "CFG Scale", "type": "float", "api_field": "cfg_scale", "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05 }
+      ]
+    },
+    {
+      "id": "kling3_pro_txt2vid",
+      "name": "Kling 3 Pro (txt2vid)",
+      "endpoint": "fal-ai/kling-video/v3/pro/text-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] },
+        { "name": "cfg_scale", "label": "CFG Scale", "type": "float", "api_field": "cfg_scale", "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05 }
+      ]
+    },
+    {
+      "id": "kling3_pro_img2vid",
+      "name": "Kling 3 Pro (img2vid)",
+      "endpoint": "fal-ai/kling-video/v3/pro/image-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "start_image", "data_type": "IMAGE", "api_field": "start_image_url", "required": true },
+        { "name": "end_image", "data_type": "IMAGE", "api_field": "end_image_url" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "start", "api_field": "start_image_url", "max": 1 },
+        { "role": "end", "api_field": "end_image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] },
+        { "name": "cfg_scale", "label": "CFG Scale", "type": "float", "api_field": "cfg_scale", "default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05 }
+      ]
+    },
+    {
+      "id": "kling3_std_ref2vid",
+      "name": "Kling 3 Standard (ref2vid)",
+      "endpoint": "fal-ai/kling-video/o3/standard/reference-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "start_image", "data_type": "IMAGE", "api_field": "start_image_url" },
+        { "name": "end_image", "data_type": "IMAGE", "api_field": "end_image_url" },
+        { "name": "ref_images", "data_type": "IMAGE", "api_field": "elements" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "start", "api_field": "start_image_url", "max": 1 },
+        { "role": "end", "api_field": "end_image_url", "max": 1 },
+        { "role": "element", "api_field": "elements", "max": 4 }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] }
+      ]
+    },
+    {
+      "id": "kling3_pro_ref2vid",
+      "name": "Kling 3 Pro (ref2vid)",
+      "endpoint": "fal-ai/kling-video/o3/pro/reference-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "start_image", "data_type": "IMAGE", "api_field": "start_image_url", "required": true },
+        { "name": "end_image", "data_type": "IMAGE", "api_field": "end_image_url" },
+        { "name": "ref_images", "data_type": "IMAGE", "api_field": "elements" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "start", "api_field": "start_image_url", "max": 1 },
+        { "role": "end", "api_field": "end_image_url", "max": 1 },
+        { "role": "element", "api_field": "elements", "max": 4 }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] }
+      ]
+    },
+    {
+      "id": "kling3_std_vid2vid_ref",
+      "name": "Kling 3 Standard (vid2vid ref)",
+      "endpoint": "fal-ai/kling-video/o3/standard/video-to-video/reference",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "video", "data_type": "VIDEO", "api_field": "video_url", "required": true },
+        { "name": "ref_images", "data_type": "IMAGE", "api_field": "elements" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "video_url", "max": 1 },
+        { "role": "element", "api_field": "elements", "max": 4 }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "auto", "options": ["auto", "16:9", "9:16", "1:1"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "keep_audio", "label": "Keep Audio", "type": "bool", "api_field": "keep_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] }
+      ]
+    },
+    {
+      "id": "kling3_pro_vid2vid_ref",
+      "name": "Kling 3 Pro (vid2vid ref)",
+      "endpoint": "fal-ai/kling-video/o3/pro/video-to-video/reference",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "video", "data_type": "VIDEO", "api_field": "video_url", "required": true },
+        { "name": "ref_images", "data_type": "IMAGE", "api_field": "elements" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "video_url", "max": 1 },
+        { "role": "element", "api_field": "elements", "max": 4 }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "auto", "options": ["auto", "16:9", "9:16", "1:1"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "keep_audio", "label": "Keep Audio", "type": "bool", "api_field": "keep_audio", "default": true },
+        { "name": "shot_type", "label": "Shot Type", "type": "enum", "api_field": "shot_type", "default": "customize", "options": ["customize", "intelligent"] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "family": "Kling 3 Image",
+  "category": "fal.ai/Image Generation",
+  "nodes": [
+    {
+      "id": "kling3_txt2img",
+      "name": "Kling 3 (txt2img)",
+      "endpoint": "fal-ai/kling-image/v3/text-to-image",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"] },
+        { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1K", "options": ["1K", "2K"] },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 9 },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+      ]
+    },
+    {
+      "id": "kling3_img2img",
+      "name": "Kling 3 (img2img)",
+      "endpoint": "fal-ai/kling-image/v3/image-to-image",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_url", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9"] },
+        { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1K", "options": ["1K", "2K"] },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 9 },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+      ]
+    }
+  ]
+}
