@@ -961,7 +961,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "falocai"
+name = "falpipe"
 version = "0.1.0"
 dependencies = [
  "anyhow",

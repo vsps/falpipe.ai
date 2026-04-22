@@ -38,7 +38,6 @@ pub struct RefRoleSpec {
 pub type Parameter = Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ModelNode {
     pub id: String,
     pub name: String,

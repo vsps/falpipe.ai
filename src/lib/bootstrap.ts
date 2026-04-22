@@ -88,17 +88,17 @@ export async function bootstrap(): Promise<() => void> {
               const shotPath = joinPath(sp, appState.lastShot);
               try {
                 await useSessionStore.getState().setShot(shotPath);
-              } catch {
-                /* shot folder gone — ignore */
+              } catch (e) {
+                console.warn(`[bootstrap] shot restore failed for ${shotPath}:`, e);
               }
             }
           }
-        } catch {
-          /* sequence folder gone — ignore */
+        } catch (e) {
+          console.warn(`[bootstrap] sequence restore failed for ${seqPath}:`, e);
         }
       }
-    } catch {
-      /* project path invalid — ignore */
+    } catch (e) {
+      console.warn(`[bootstrap] project restore failed for ${appState.projectPath}:`, e);
     }
   }
 

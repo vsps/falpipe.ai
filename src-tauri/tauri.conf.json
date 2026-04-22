@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "faLOCai",
+  "productName": "falPipe",
   "version": "0.1.0",
-  "identifier": "tv.heckler.falocai",
+  "identifier": "tv.heckler.falpipe",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,11 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "faLOCai",
+        "title": "falPipe",
         "width": 1600,
         "height": 1000,
         "minWidth": 1200,
-        "minHeight": 800
+        "minHeight": 800,
+        "dragDropEnabled": true
       }
     ],
     "security": {

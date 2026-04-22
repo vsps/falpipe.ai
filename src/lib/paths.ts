@@ -15,7 +15,10 @@ export function dirname(p: string | null | undefined): string {
 export function joinPath(...parts: (string | null | undefined)[]): string {
   return parts
     .filter((p): p is string => !!p)
-    .map((p, i) => (i === 0 ? p.replace(/\/+$/, "") : p.replaceAll("\\", "/").replace(/^\/+|\/+$/g, "")))
+    .map((p, i) => {
+      const fwd = p.replaceAll("\\", "/");
+      return i === 0 ? fwd.replace(/\/+$/, "") : fwd.replace(/^\/+|\/+$/g, "");
+    })
     .join("/");
 }
 

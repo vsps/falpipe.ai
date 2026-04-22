@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::error::{AppError, AppResult};
 
-const APP_DIR_NAME: &str = "falocai";
+const APP_DIR_NAME: &str = "falPipe";
 
 pub fn appdata_dir() -> AppResult<PathBuf> {
     let base = dirs::config_dir()

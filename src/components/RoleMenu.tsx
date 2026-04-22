@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useGenerationStore } from "../stores/generationStore";
 import type { ModelNode, RefImage, RoleAssignment } from "../lib/types";
 
 type Props = {
@@ -27,14 +28,25 @@ function rolesSupportedBy(model: ModelNode | null): {
 
 export function RoleMenu({ anchor, ref_, model, onAssign, onClose }: Props) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [groupName, setGroupName] = useState(
-    ref_.roleAssignment?.kind === "element" ? ref_.roleAssignment.groupName : "",
-  );
-  const [frontal, setFrontal] = useState(
-    ref_.roleAssignment?.kind === "element" ? ref_.roleAssignment.frontal : false,
-  );
+  const refImages = useGenerationStore((s) => s.refImages);
   const supported = rolesSupportedBy(model);
   const anyRole = supported.source || supported.start || supported.end || supported.element;
+
+  const current = ref_.roleAssignment;
+  const myElement = current?.kind === "element" ? current : null;
+
+  // Existing element group numbers in first-seen order — normalized to "1","2",...
+  const existingGroups: string[] = [];
+  for (const r of refImages) {
+    if (r.roleAssignment?.kind === "element") {
+      const g = r.roleAssignment.groupName;
+      if (!existingGroups.includes(g)) existingGroups.push(g);
+    }
+  }
+  existingGroups.sort((a, b) => Number(a) - Number(b));
+  const nextGroup = String(
+    existingGroups.length ? Math.max(...existingGroups.map(Number)) + 1 : 1,
+  );
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -94,31 +106,44 @@ export function RoleMenu({ anchor, ref_, model, onAssign, onClose }: Props) {
       {supported.element && (
         <div className="flex flex-col gap-1 border-t border-dim pt-1 mt-1">
           <div className="text-xs opacity-60">element</div>
-          <input
-            type="text"
-            value={groupName}
-            onChange={(e) => setGroupName(e.currentTarget.value)}
-            placeholder="group name"
-            className="bg-bg text-text px-1 py-[2px] outline-none"
-          />
-          <label className="flex items-center gap-1 text-xs">
-            <input
-              type="checkbox"
-              checked={frontal}
-              onChange={(e) => setFrontal(e.currentTarget.checked)}
-              className="accent-accent"
+          {existingGroups.map((g) => (
+            <RoleOption
+              key={g}
+              label={`@Element${g}${myElement?.groupName === g && myElement.frontal ? " ★" : ""}`}
+              active={myElement?.groupName === g}
+              onClick={() =>
+                onAssign({
+                  kind: "element",
+                  groupName: g,
+                  frontal: myElement?.groupName === g ? myElement.frontal : false,
+                })
+              }
             />
-            frontal
-          </label>
-          <button
-            className="bg-accent text-text px-2 py-[2px] mt-1 disabled:opacity-40"
-            disabled={!groupName.trim()}
+          ))}
+          <RoleOption
+            label={`+ New element (@Element${nextGroup})`}
+            active={false}
             onClick={() =>
-              onAssign({ kind: "element", groupName: groupName.trim(), frontal })
+              onAssign({ kind: "element", groupName: nextGroup, frontal: false })
             }
-          >
-            assign
-          </button>
+          />
+          {myElement && (
+            <label className="flex items-center gap-1 text-xs px-1 pt-1">
+              <input
+                type="checkbox"
+                checked={myElement.frontal}
+                onChange={(e) =>
+                  onAssign({
+                    kind: "element",
+                    groupName: myElement.groupName,
+                    frontal: e.currentTarget.checked,
+                  })
+                }
+                className="accent-accent"
+              />
+              frontal
+            </label>
+          )}
         </div>
       )}
       <button

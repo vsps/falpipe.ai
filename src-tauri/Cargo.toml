@@ -1,12 +1,12 @@
 [package]
-name = "falocai"
+name = "falpipe"
 version = "0.1.0"
-description = "faLOCai — fal.ai desktop pipeline"
+description = "falPipe— fal.ai desktop pipeline"
 authors = ["Piotr"]
 edition = "2021"
 
 [lib]
-name = "falocai_lib"
+name = "falpipe_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

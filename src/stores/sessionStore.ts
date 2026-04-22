@@ -72,9 +72,12 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
   traceActive: null,
 
   async setProject(projectPath) {
-    const sequences = await cmd.project_open(projectPath);
+    // Rust's list_dirs returns forward-slash paths. Normalize the incoming path
+    // the same way so the PROJECT/SEQUENCE/SHOT dropdowns string-match their options.
+    const normalized = projectPath.replaceAll("\\", "/").replace(/\/+$/, "");
+    const sequences = await cmd.project_open(normalized);
     set({
-      projectPath,
+      projectPath: normalized,
       sequencesInProject: sequences,
       sequencePath: null,
       shotPath: null,

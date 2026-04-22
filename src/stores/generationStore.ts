@@ -28,6 +28,7 @@ type Actions = {
   removeRef: (path: string) => void;
   removeAllRefs: () => void;
   assignRole: (path: string, role: RoleAssignment | null) => void;
+  reorderRefs: (fromIdx: number, toIdx: number) => void;
 
   setGenerating: (v: boolean) => void;
   setProgress: (message: string, iter?: number) => void;
@@ -40,6 +41,30 @@ function defaultsFor(params: Parameter[]): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const p of params) out[p.api_field] = p.default;
   return out;
+}
+
+// Ensure every element group has exactly one frontal. If none is set, the first
+// ref in the group (by panel order) is auto-promoted. User-assigned group
+// numbers are left as-is — no auto-renumbering, so higher numbers survive even
+// when earlier positions are empty or bear lower numbers.
+function ensureFrontals(refs: RefImage[]): RefImage[] {
+  const hasFrontal = new Map<string, boolean>();
+  for (const r of refs) {
+    if (r.roleAssignment?.kind === "element" && r.roleAssignment.frontal) {
+      hasFrontal.set(r.roleAssignment.groupName, true);
+    }
+  }
+  const promoted = new Set<string>();
+  return refs.map((r) => {
+    if (r.roleAssignment?.kind === "element") {
+      const g = r.roleAssignment.groupName;
+      if (!hasFrontal.get(g) && !promoted.has(g)) {
+        promoted.add(g);
+        return { ...r, roleAssignment: { ...r.roleAssignment, frontal: true } };
+      }
+    }
+    return r;
+  });
 }
 
 export const useGenerationStore = create<State & Actions>((set, get) => ({
@@ -82,35 +107,53 @@ export const useGenerationStore = create<State & Actions>((set, get) => ({
     });
   },
   removeRef(path) {
-    set((s) => ({ refImages: s.refImages.filter((r) => r.path !== path) }));
+    set((s) => ({
+      refImages: ensureFrontals(s.refImages.filter((r) => r.path !== path)),
+    }));
   },
   removeAllRefs() {
     set({ refImages: [] });
+  },
+  reorderRefs(fromIdx, toIdx) {
+    set((s) => {
+      if (
+        fromIdx === toIdx ||
+        fromIdx < 0 ||
+        toIdx < 0 ||
+        fromIdx >= s.refImages.length ||
+        toIdx >= s.refImages.length
+      ) {
+        return {} as Partial<State>;
+      }
+      const next = s.refImages.slice();
+      const [item] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, item);
+      return { refImages: ensureFrontals(next) };
+    });
   },
   assignRole(path, role) {
     set((s) => {
       // Enforce exclusivity for start/end: clear from any other ref.
       const exclusive = role && (role.kind === "start" || role.kind === "end") ? role.kind : null;
-      return {
-        refImages: s.refImages.map((r) => {
-          if (r.path === path) return { ...r, roleAssignment: role };
-          if (exclusive && r.roleAssignment?.kind === exclusive) {
-            return { ...r, roleAssignment: null };
-          }
-          // Frontal uniqueness per element group.
-          if (
-            role &&
-            role.kind === "element" &&
-            role.frontal &&
-            r.roleAssignment?.kind === "element" &&
-            r.roleAssignment.groupName === role.groupName &&
-            r.path !== path
-          ) {
-            return { ...r, roleAssignment: { ...r.roleAssignment, frontal: false } };
-          }
-          return r;
-        }),
-      };
+      const next = s.refImages.map((r) => {
+        if (r.path === path) return { ...r, roleAssignment: role };
+        if (exclusive && r.roleAssignment?.kind === exclusive) {
+          return { ...r, roleAssignment: null };
+        }
+        // Frontal uniqueness per element group.
+        if (
+          role &&
+          role.kind === "element" &&
+          role.frontal &&
+          r.roleAssignment?.kind === "element" &&
+          r.roleAssignment.groupName === role.groupName &&
+          r.path !== path
+        ) {
+          return { ...r, roleAssignment: { ...r.roleAssignment, frontal: false } };
+        }
+        return r;
+      });
+      return { refImages: ensureFrontals(next) };
     });
   },
 

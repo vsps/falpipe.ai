@@ -375,6 +375,11 @@ export function buildArgs(
 
     let sourceConsumed = false;
     for (const role of node.ref_roles) {
+      if (role.role === "element") {
+        const elements = buildElements(bucket, role.max);
+        if (elements.length > 0) args[role.api_field] = elements;
+        continue;
+      }
       const slice = selectForRole(role, bucket, unassigned, sourceConsumed);
       if (slice.length === 0) continue;
       if (role.role === "source") sourceConsumed = true;
@@ -402,18 +407,6 @@ function selectForRole(
   unassigned: UploadedRef[],
   sourceConsumed: boolean,
 ): UploadedRef[] {
-  if (role.role === "element") {
-    const out: UploadedRef[] = [];
-    for (const [key, refs] of Object.entries(bucket)) {
-      if (!key.startsWith("element:")) continue;
-      const [frontal, rest] = partition(
-        refs,
-        (r) => r.ref.roleAssignment?.kind === "element" && r.ref.roleAssignment.frontal,
-      );
-      out.push(...frontal, ...rest);
-    }
-    return role.max ? out.slice(0, role.max) : out;
-  }
   if (role.exclusive) {
     return (bucket[role.role] ?? []).slice(0, 1);
   }
@@ -424,11 +417,53 @@ function selectForRole(
   return role.max ? picked.slice(0, role.max) : picked;
 }
 
-function partition<T>(xs: T[], pred: (x: T) => boolean): [T[], T[]] {
-  const a: T[] = [];
-  const b: T[] = [];
-  for (const x of xs) (pred(x) ? a : b).push(x);
-  return [a, b];
+type KlingElement = {
+  frontal_image_url: string;
+  reference_image_urls: string[];
+};
+
+// Emit Kling-shaped elements[] — one entry per element:<groupName> bucket,
+// ordered by numeric groupName (user-assigned; gaps collapse at emission time
+// since Kling references elements positionally as @Element1..N).
+// Each element must have BOTH frontal_image_url and reference_image_urls per
+// Kling's schema. If a group has only one image, the frontal is duplicated
+// into the refs list. If no image is explicitly frontal (should be rare —
+// the store auto-promotes the first), we promote the first here too.
+function buildElements(
+  bucket: Record<string, UploadedRef[]>,
+  max?: number,
+): KlingElement[] {
+  const keys = Object.keys(bucket)
+    .filter((k) => k.startsWith("element:"))
+    .sort((a, b) => {
+      const na = Number(a.slice(8));
+      const nb = Number(b.slice(8));
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return a.localeCompare(b);
+    });
+
+  const out: KlingElement[] = [];
+  for (const key of keys) {
+    const refs = bucket[key];
+    if (refs.length === 0) continue;
+
+    let frontal: string | undefined;
+    const rest: string[] = [];
+    for (const r of refs) {
+      const a = r.ref.roleAssignment;
+      if (a?.kind === "element" && a.frontal && !frontal) frontal = r.url;
+      else rest.push(r.url);
+    }
+    if (!frontal) {
+      frontal = refs[0].url;
+      rest.shift();
+    }
+    out.push({
+      frontal_image_url: frontal,
+      reference_image_urls: rest.length > 0 ? rest : [frontal],
+    });
+  }
+  return max ? out.slice(0, max) : out;
 }
 
 // ---------- Download + sidecar ----------
