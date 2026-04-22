@@ -1,0 +1,45 @@
+{
+  "family": "Nano Banana Pro",
+  "category": "fal.ai/Image Generation",
+  "nodes": [
+    {
+      "id": "nano_banana_pro_txt2img",
+      "name": "Nano Banana Pro (txt2img)",
+      "endpoint": "fal-ai/nano-banana-pro",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "1:1", "options": ["auto", "1:1", "4:3", "3:2", "16:9", "21:9", "5:4", "4:5", "3:4", "2:3", "9:16"] },
+        { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1K", "options": ["1K", "2K", "4K"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "safety_tolerance", "label": "Safety", "type": "enum", "api_field": "safety_tolerance", "default": "4", "options": ["1", "2", "3", "4", "5", "6"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    },
+    {
+      "id": "nano_banana_pro_edit",
+      "name": "Nano Banana Pro (edit)",
+      "endpoint": "fal-ai/nano-banana-pro/edit",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_urls", "api_format": "array", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "auto", "options": ["auto", "1:1", "4:3", "3:2", "16:9", "21:9", "5:4", "4:5", "3:4", "2:3", "9:16"] },
+        { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1K", "options": ["1K", "2K", "4K"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "safety_tolerance", "label": "Safety", "type": "enum", "api_field": "safety_tolerance", "default": "4", "options": ["1", "2", "3", "4", "5", "6"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    }
+  ]
+}

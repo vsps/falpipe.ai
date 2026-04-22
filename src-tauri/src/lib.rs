@@ -1,0 +1,41 @@
+mod commands;
+mod domain;
+mod error;
+mod paths;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::config::config_load,
+            commands::config::config_save,
+            commands::config::app_state_load,
+            commands::config::app_state_save,
+            commands::config::fal_key_get,
+            commands::config::fal_key_set,
+            commands::models::models_load,
+            commands::session::project_open,
+            commands::session::sequence_open,
+            commands::session::sequence_create,
+            commands::session::shot_open,
+            commands::session::shot_create,
+            commands::session::shot_rescan,
+            commands::session::version_create_next,
+            commands::session::ref_copy_to_src,
+            commands::session::sequence_prompt_append,
+            commands::session::shot_prompt_append,
+            commands::metadata::image_metadata_read,
+            commands::metadata::image_metadata_write,
+            commands::metadata::image_delete,
+            commands::metadata::column_delete,
+            commands::download::download_to_path,
+            commands::media::test_mode_hue_shift,
+            commands::media::video_thumbnail_extract,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

@@ -1,0 +1,141 @@
+{
+  "family": "FLUX",
+  "category": "fal.ai/Image Generation",
+  "nodes": [
+    {
+      "id": "flux_schnell_txt2img",
+      "name": "FLUX.1 [schnell]",
+      "endpoint": "fal-ai/flux/schnell",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+          "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "num_inference_steps", "label": "Steps", "type": "int", "api_field": "num_inference_steps", "default": 4, "min": 1, "max": 12 },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    },
+    {
+      "id": "flux_dev_txt2img",
+      "name": "FLUX.1 [dev]",
+      "endpoint": "fal-ai/flux/dev",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+          "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "num_inference_steps", "label": "Steps", "type": "int", "api_field": "num_inference_steps", "default": 28, "min": 1, "max": 50 },
+        { "name": "guidance_scale", "label": "Guidance", "type": "float", "api_field": "guidance_scale", "default": 3.5, "min": 1.0, "max": 20.0, "step": 0.1 },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    },
+    {
+      "id": "flux_pro_txt2img",
+      "name": "FLUX.1 [pro]",
+      "endpoint": "fal-ai/flux-pro",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+          "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    },
+    {
+      "id": "flux_schnell_img2img",
+      "name": "FLUX.1 [schnell] (img2img)",
+      "endpoint": "fal-ai/flux/schnell",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_url", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "strength", "label": "Strength", "type": "float", "api_field": "strength", "default": 0.8, "min": 0.0, "max": 1.0, "step": 0.05 },
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+          "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "num_inference_steps", "label": "Steps", "type": "int", "api_field": "num_inference_steps", "default": 4, "min": 1, "max": 12 },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    },
+    {
+      "id": "flux_dev_img2img",
+      "name": "FLUX.1 [dev] (img2img)",
+      "endpoint": "fal-ai/flux/dev",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_url", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "strength", "label": "Strength", "type": "float", "api_field": "strength", "default": 0.8, "min": 0.0, "max": 1.0, "step": 0.05 },
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+          "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "num_inference_steps", "label": "Steps", "type": "int", "api_field": "num_inference_steps", "default": 28, "min": 1, "max": 50 },
+        { "name": "guidance_scale", "label": "Guidance", "type": "float", "api_field": "guidance_scale", "default": 3.5, "min": 1.0, "max": 20.0, "step": 0.1 },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    },
+    {
+      "id": "flux_pro_img2img",
+      "name": "FLUX.1 [pro] (img2img)",
+      "endpoint": "fal-ai/flux-pro",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_url", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "strength", "label": "Strength", "type": "float", "api_field": "strength", "default": 0.8, "min": 0.0, "max": 1.0, "step": 0.05 },
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+          "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    }
+  ]
+}

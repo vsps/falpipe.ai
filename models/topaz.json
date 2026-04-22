@@ -1,0 +1,41 @@
+{
+  "family": "Topaz Upscale",
+  "category": "fal.ai/Upscaling",
+  "nodes": [
+    {
+      "id": "topaz_upscale_image",
+      "name": "Topaz Upscale (image)",
+      "endpoint": "fal-ai/topaz/upscale/image",
+      "inputs": [
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_url", "required": true }
+      ],
+      "outputs": [
+        { "name": "image", "data_type": "IMAGE", "api_field": "image" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "scale", "label": "Scale", "type": "int", "api_field": "scale", "default": 2, "min": 2, "max": 4 },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+      ]
+    },
+    {
+      "id": "topaz_upscale_video",
+      "name": "Topaz Upscale (video)",
+      "endpoint": "fal-ai/topaz/upscale/video",
+      "inputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video_url", "required": true }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "source", "api_field": "video_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "scale", "label": "Scale", "type": "int", "api_field": "scale", "default": 2, "min": 2, "max": 4 }
+      ]
+    }
+  ]
+}

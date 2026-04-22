@@ -1,0 +1,71 @@
+{
+  "family": "Veo3",
+  "category": "fal.ai/Video Generation",
+  "nodes": [
+    {
+      "id": "veo3_txt2vid",
+      "name": "Veo3 (txt2vid)",
+      "endpoint": "fal-ai/veo3",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "8s", "options": ["4s", "6s", "8s"] },
+        { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "720p", "options": ["720p", "1080p"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "negative_prompt", "label": "Neg Prompt", "type": "enum", "api_field": "negative_prompt", "default": "", "options": [""] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    },
+    {
+      "id": "veo3_img2vid",
+      "name": "Veo3 (img2vid)",
+      "endpoint": "fal-ai/veo3/image-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_url" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "start", "api_field": "image_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "auto", "options": ["auto", "16:9", "9:16"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "8s", "options": ["4s", "6s", "8s"] },
+        { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "720p", "options": ["720p", "1080p"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true }
+      ]
+    },
+    {
+      "id": "veo3_first_last",
+      "name": "Veo3.1 (first+last frame)",
+      "endpoint": "fal-ai/veo3.1/fast/first-last-frame-to-video",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "first_frame", "data_type": "IMAGE", "api_field": "first_frame_url" },
+        { "name": "last_frame", "data_type": "IMAGE", "api_field": "last_frame_url" }
+      ],
+      "outputs": [
+        { "name": "video", "data_type": "VIDEO", "api_field": "video" }
+      ],
+      "ref_roles": [
+        { "role": "start", "api_field": "first_frame_url", "max": 1 },
+        { "role": "end", "api_field": "last_frame_url", "max": 1 }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16"] },
+        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "8s", "options": ["4s", "6s", "8s"] },
+        { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "720p", "options": ["720p", "1080p", "4k"] },
+        { "name": "generate_audio", "label": "Audio", "type": "bool", "api_field": "generate_audio", "default": true },
+        { "name": "negative_prompt", "label": "Neg Prompt", "type": "enum", "api_field": "negative_prompt", "default": "", "options": [""] },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    }
+  ]
+}
