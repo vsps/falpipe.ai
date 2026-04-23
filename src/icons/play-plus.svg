@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-label="Play Plus" role="img">
+  <path d="M5 5.25c0-.79.86-1.28 1.54-.88l10.5 6.56a1 1 0 0 1 0 1.7l-10.5 6.56C5.86 19.6 5 19.11 5 18.32V5.25Z"></path>
+  <path d="M18.5 2.5a1 1 0 0 1 1 1V5h1.5a1 1 0 1 1 0 2H19.5v1.5a1 1 0 1 1-2 0V7H16a1 1 0 1 1 0-2h1.5V3.5a1 1 0 0 1 1-1Z"></path>
+</svg>

@@ -131,8 +131,9 @@ export function ImageZoomModal({
           path={image.path}
           onClose={() => setMenuPos(null)}
           items={[
-            "copy_path",
             "add_to_refs",
+            "copy_path",
+            "copy_image",
             "copy_prompt",
             "copy_settings",
             "trace",

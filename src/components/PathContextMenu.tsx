@@ -13,8 +13,9 @@ type Props = {
 };
 
 const DEFAULT_ITEMS: AvailableAction[] = [
-  "copy_path",
   "add_to_refs",
+  "copy_path",
+  "copy_image",
   "copy_prompt",
   "copy_settings",
   "trace",
@@ -23,8 +24,9 @@ const DEFAULT_ITEMS: AvailableAction[] = [
 ];
 
 const LABELS: Record<AvailableAction, string> = {
-  copy_path: "Copy path",
   add_to_refs: "Add to references",
+  copy_path: "Copy path",
+  copy_image: "Copy image",
   copy_prompt: "Copy prompt",
   copy_settings: "Copy settings",
   trace: "Trace origins",

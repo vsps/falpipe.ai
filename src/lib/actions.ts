@@ -116,10 +116,46 @@ export type ImageAction =
   | "select"
   | "add_to_refs"
   | "copy_path"
+  | "copy_image"
   | "copy_settings"
   | "copy_prompt"
   | "trace"
   | "delete";
+
+const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "m4v", "avi"]);
+
+// Transcode an on-disk image to PNG bytes and push to the system clipboard.
+// Canvas handles jpeg/webp/etc. so the clipboard receives something every OS
+// paste target can accept. Videos aren't supported (no "image" to copy).
+async function copyImageToClipboard(path: string): Promise<void> {
+  const ext = (path.split(".").pop() ?? "").toLowerCase();
+  if (VIDEO_EXTS.has(ext)) {
+    await showMessage("Copy image not supported for video files", { kind: "warning" });
+    return;
+  }
+  const { fileSrc } = await import("./assets");
+  const url = fileSrc(path);
+  const img = new Image();
+  img.src = url;
+  try {
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res();
+      img.onerror = () => rej(new Error("image load failed"));
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas 2d context unavailable");
+    ctx.drawImage(img, 0, 0);
+    const blob: Blob = await new Promise((res, rej) =>
+      canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/png"),
+    );
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+  } catch (e) {
+    await showMessage(`Copy image failed: ${e}`, { kind: "error" });
+  }
+}
 
 /** Single entry point for any image op invoked from thumbs, preview, or zoom. */
 export async function performImageAction(action: ImageAction, path: string): Promise<void> {
@@ -138,6 +174,9 @@ export async function performImageAction(action: ImageAction, path: string): Pro
       } catch {
         /* ignore */
       }
+      return;
+    case "copy_image":
+      await copyImageToClipboard(path);
       return;
     case "add_to_refs":
       try {
