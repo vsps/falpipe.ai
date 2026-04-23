@@ -17,7 +17,7 @@ Built with React + Tailwind (frontend) on a Rust + Tauri (native) host. Windows 
 
 ENTIRELY VIBE CODED SO GOOD LUCK EVERYBODY!
 
-![falPipe](https://github.com/user-attachments/assets/5b379440-2698-49a5-9b87-f5cc910c9421)
+![falPipe](https://github.com/user-attachments/assets/8750222f-635d-4d88-b7d3-e0cfbaf3383d)
 
 
 ## Features
