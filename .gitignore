@@ -13,8 +13,7 @@ dist-ssr
 *.local
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea
 .DS_Store
 *.suo
@@ -23,5 +22,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Claude Code — never track
+# Claude Code + MCP — never track
 CLAUDE.md
+.claude/
+.mcp.json
