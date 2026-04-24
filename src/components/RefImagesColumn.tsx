@@ -21,7 +21,6 @@ function isImage(path: string): boolean {
 export function RefImagesColumn() {
   const { currentModel, refImages, addRefs, removeRef, removeAllRefs, assignRole, reorderRefs } =
     useGenerationStore();
-  const { shotPath } = useSessionStore();
 
   const [menu, setMenu] = useState<{ anchor: HTMLElement; ref: RefImage } | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -31,6 +30,9 @@ export function RefImagesColumn() {
   const panelRef = useRef<HTMLDivElement>(null);
 
   async function ingestPaths(paths: string[]) {
+    // Read shotPath fresh each call — the Tauri drop listener is registered
+    // once for the component lifetime, so we can't rely on a closed-over value.
+    const shotPath = useSessionStore.getState().shotPath;
     if (!shotPath) {
       await showMessage("Open a shot first", { kind: "warning" });
       return;
@@ -58,9 +60,12 @@ export function RefImagesColumn() {
     await ingestPaths(paths);
   }
 
-  // Tauri-level OS file drop. Position is physical pixels on Tauri v2.
+  // Tauri-level OS file drop. Registered once. `disposed` guards against the
+  // cleanup firing before onDragDropEvent's promise resolves — otherwise the
+  // real listener leaks and stale handlers stack up on every shot change.
   useEffect(() => {
     let unlisten: (() => void) | null = null;
+    let disposed = false;
     const hitTest = (x: number, y: number): boolean => {
       const el = panelRef.current;
       if (!el) return false;
@@ -84,14 +89,16 @@ export function RefImagesColumn() {
         }
       })
       .then((fn) => {
-        unlisten = fn;
+        if (disposed) fn();
+        else unlisten = fn;
       })
       .catch((e) => console.error("onDragDropEvent registration failed:", e));
     return () => {
+      disposed = true;
       if (unlisten) unlisten();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shotPath]);
+  }, []);
 
   // Intra-app drag-to-reorder. The white bar on each thumb is the handle
   // (image body stays as a zoom target). Pointer events so it coexists with

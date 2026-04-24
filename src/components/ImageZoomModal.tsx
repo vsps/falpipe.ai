@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { GalleryImage, ImageMetadata } from "../lib/types";
 import { fileSrc } from "../lib/assets";
 import { IconBtn } from "./IconBtn";
 import { PathContextMenu } from "./PathContextMenu";
+import { useSessionStore } from "../stores/sessionStore";
 import { cmd } from "../lib/tauri";
 
 type Props = {
@@ -27,6 +28,24 @@ export function ImageZoomModal({
   const [fit, setFit] = useState<"fit" | "one">("fit");
   const [meta, setMeta] = useState<ImageMetadata | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const columns = useSessionStore((s) => s.columns);
+  const setZoomImage = useSessionStore((s) => s.setZoomImage);
+
+  // Flat image list across all columns in display order, for prev/next nav.
+  const flatImages = useMemo(
+    () => columns.flatMap((c) => c.images),
+    [columns],
+  );
+  const currentIdx = flatImages.findIndex((i) => i.path === image.path);
+  const hasPrev = currentIdx > 0;
+  const hasNext = currentIdx >= 0 && currentIdx < flatImages.length - 1;
+
+  const step = (delta: number) => {
+    if (currentIdx < 0) return;
+    const next = currentIdx + delta;
+    if (next < 0 || next >= flatImages.length) return;
+    setZoomImage(flatImages[next].path);
+  };
 
   const onCtx = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -35,16 +54,24 @@ export function ImageZoomModal({
   };
 
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       else if (e.key === " ") {
         e.preventDefault();
         setFit((f) => (f === "fit" ? "one" : "fit"));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        step(-1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        step(1);
       }
     };
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [onClose]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // step closes over currentIdx/flatImages; re-bind each render is fine.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, currentIdx, flatImages.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +95,7 @@ export function ImageZoomModal({
       className="fixed inset-0 z-40 bg-black/90 flex flex-col"
       onClick={onClose}
     >
-      <div className="flex-1 min-h-0 overflow-auto thin-scroll flex items-center justify-center">
+      <div className="flex-1 min-h-0 overflow-auto thin-scroll flex items-center justify-center relative">
         {image.isVideo ? (
           <video
             src={src}
@@ -90,6 +117,32 @@ export function ImageZoomModal({
             }}
             onContextMenu={onCtx}
           />
+        )}
+        {hasPrev && (
+          <button
+            type="button"
+            title="Previous (←)"
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-panel/70 hover:bg-panel text-text rounded-full p-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              step(-1);
+            }}
+          >
+            <IconBtn name="chevron_left" size={32} />
+          </button>
+        )}
+        {hasNext && (
+          <button
+            type="button"
+            title="Next (→)"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-panel/70 hover:bg-panel text-text rounded-full p-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              step(1);
+            }}
+          >
+            <IconBtn name="chevron_right" size={32} />
+          </button>
         )}
       </div>
 

@@ -1,0 +1,43 @@
+{
+  "family": "GPT Image 2",
+  "category": "fal.ai/Image Generation",
+  "nodes": [
+    {
+      "id": "gpt_image_2_txt2img",
+      "name": "GPT Image 2 (txt2img)",
+      "endpoint": "openai/gpt-image-2",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+          "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "quality", "label": "Quality", "type": "enum", "api_field": "quality", "default": "high", "options": ["low", "medium", "high"] },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+      ]
+    },
+    {
+      "id": "gpt_image_2_edit",
+      "name": "GPT Image 2 (edit)",
+      "endpoint": "openai/gpt-image-2/edit",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true },
+        { "name": "image", "data_type": "IMAGE", "api_field": "image_urls", "api_format": "array", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "auto",
+          "options": ["auto", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
+        { "name": "quality", "label": "Quality", "type": "enum", "api_field": "quality", "default": "high", "options": ["low", "medium", "high"] },
+        { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+      ]
+    }
+  ]
+}

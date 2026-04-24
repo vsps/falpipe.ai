@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { GalleryImage } from "../lib/types";
 import { GalleryColumn } from "./GalleryColumn";
 import { ImageZoomModal } from "./ImageZoomModal";
@@ -42,6 +43,63 @@ export function Gallery() {
 
   const onImageAction = (action: ImageAction, path: string) =>
     performImageAction(action, path);
+
+  // Grid keyboard nav. Arrow keys traverse the 2D gallery (columns × images).
+  // Left/Right across columns keeping the row index; Up/Down within a column.
+  // Skipped while typing in inputs or while the zoom modal owns arrows.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (
+        e.key !== "ArrowLeft" &&
+        e.key !== "ArrowRight" &&
+        e.key !== "ArrowUp" &&
+        e.key !== "ArrowDown"
+      )
+        return;
+      if (zoomImagePath) return;
+      const tgt = e.target as HTMLElement | null;
+      const tag = tgt?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tgt?.isContentEditable) return;
+      if (columns.every((c) => c.images.length === 0)) return;
+
+      e.preventDefault();
+      const selected = session.selectedImagePath;
+      let colIdx = selected
+        ? columns.findIndex((c) => c.images.some((i) => i.path === selected))
+        : -1;
+      let rowIdx = -1;
+      if (colIdx >= 0 && selected) {
+        rowIdx = columns[colIdx].images.findIndex((i) => i.path === selected);
+      }
+
+      // No current selection → first image of first non-empty column.
+      if (colIdx < 0 || rowIdx < 0) {
+        const firstCol = columns.findIndex((c) => c.images.length > 0);
+        if (firstCol < 0) return;
+        session.setSelectedImage(columns[firstCol].images[0].path);
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        if (rowIdx > 0) rowIdx -= 1;
+      } else if (e.key === "ArrowDown") {
+        if (rowIdx < columns[colIdx].images.length - 1) rowIdx += 1;
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const dir = e.key === "ArrowLeft" ? -1 : 1;
+        // Walk to the next non-empty column in the chosen direction.
+        let nc = colIdx + dir;
+        while (nc >= 0 && nc < columns.length && columns[nc].images.length === 0) nc += dir;
+        if (nc < 0 || nc >= columns.length) return;
+        colIdx = nc;
+        rowIdx = Math.min(rowIdx, columns[colIdx].images.length - 1);
+      }
+
+      const next = columns[colIdx].images[rowIdx];
+      if (next) session.setSelectedImage(next.path);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [columns, zoomImagePath, session]);
 
   async function onFolderDelete(version: string) {
     const col = columns.find((c) => c.version === version);

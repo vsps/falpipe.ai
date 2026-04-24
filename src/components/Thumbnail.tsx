@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { GalleryImage } from "../lib/types";
 import { IconBtn } from "./IconBtn";
 import { fileSrc } from "../lib/assets";
@@ -32,12 +32,20 @@ export function Thumbnail({
   traceActive,
 }: Props) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // When selection arrives via keyboard nav the thumb may be offscreen; scroll
+  // it back into view. "nearest" avoids jumpy scrolls for already-visible rows.
+  useEffect(() => {
+    if (selected) rootRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [selected]);
 
   if (hidden) return null;
   const srcUrl = image.isVideo ? (image.thumbPath ? fileSrc(image.thumbPath) : null) : fileSrc(image.path);
 
   return (
     <div
+      ref={rootRef}
       className={`group relative w-full shrink-0 overflow-hidden cursor-zoom-in border ${
         selected ? "border-accent" : "border-transparent"
       } ${traceActive ? "ring-2 ring-warn" : ""} bg-bg`}
