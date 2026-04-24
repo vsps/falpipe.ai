@@ -66,7 +66,7 @@ export function RunColumn() {
   const ICON_SIZE = 54;
 
   return (
-    <div className="bg-surface p-[10px] text-text flex flex-col items-center justify-center gap-[8px] shrink-0 w-[90px]">
+    <div className="bg-surface p-prompt-column text-text flex flex-col items-center justify-center gap-prompt-column-gap shrink-0 w-[90px]">
       <span className="text-xs font-semibold">ITERATIONS</span>
       <input
         type="number"

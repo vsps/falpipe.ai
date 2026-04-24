@@ -19,6 +19,7 @@ function emptyAppState(): AppState {
     iterations: 1,
     galleryHeight: 400,
     thumbColWidth: 180,
+    logHeight: 78,
   };
 }
 
@@ -37,6 +38,7 @@ function currentAppState(): AppState {
     iterations: g.iterations,
     galleryHeight: s.galleryHeight,
     thumbColWidth: s.thumbColWidth,
+    logHeight: s.logHeight,
   };
 }
 
@@ -81,6 +83,9 @@ export async function bootstrap(): Promise<() => void> {
   }
   if (typeof appState.thumbColWidth === "number") {
     useSessionStore.getState().setThumbColWidth(appState.thumbColWidth);
+  }
+  if (typeof appState.logHeight === "number") {
+    useSessionStore.getState().setLogHeight(appState.logHeight);
   }
 
   // Restore session paths.

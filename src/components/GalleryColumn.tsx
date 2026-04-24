@@ -24,7 +24,7 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction }: 
 
   return (
     <div
-      className="bg-surface p-[6px] flex flex-col gap-[5px] shrink-0 h-full min-h-0"
+      className="bg-surface p-gallery-column flex flex-col gap-gallery-column-gap shrink-0 h-full min-h-0"
       style={{ width: `${width}px` }}
     >
       <div
@@ -44,7 +44,7 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction }: 
           />
         )}
       </div>
-      <div className="flex-1 min-h-0 flex flex-col gap-[5px] overflow-y-auto thin-scroll pr-[3px]">
+      <div className="flex-1 min-h-0 flex flex-col gap-gallery-column-gap overflow-y-auto thin-scroll pr-[3px]">
         {column.images.map((img) => {
           const inTrace = traceActive ? traceActive.traceSet.has(img.path) : true;
           return (

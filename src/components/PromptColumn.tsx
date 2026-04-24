@@ -26,7 +26,7 @@ export function PromptColumn({ scope, title }: Props) {
   const canGoFwd = history.cursor < history.entries.length;
 
   return (
-    <div className="bg-surface p-[10px] text-text w-[300px] flex flex-col gap-[8px] shrink-0">
+    <div className="bg-surface p-prompt-column text-text w-[300px] flex flex-col gap-prompt-column-gap shrink-0">
       <div className="flex items-center text-sm gap-[4px] font-semibold">
         <span>{title}</span>
         {history.entries.length > 0 && (
@@ -72,7 +72,7 @@ export function PromptColumn({ scope, title }: Props) {
             ? "Prompt prepended to all shots in this sequence"
             : "Shot prompt"
         }
-        className={`flex-1 min-h-[120px] w-full resize-none bg-inset text-text p-[8px] outline-none ${
+        className={`flex-1 min-h-[120px] w-full resize-none bg-inset text-text p-prompt-panel outline-none ${
           readOnly ? "opacity-70 cursor-text" : ""
         }`}
       />

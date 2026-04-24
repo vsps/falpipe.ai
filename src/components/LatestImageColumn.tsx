@@ -24,7 +24,7 @@ export function LatestImageColumn() {
   };
 
   return (
-    <div className="bg-surface p-[10px] text-text flex-1 min-w-0 flex flex-col gap-[8px] shrink">
+    <div className="bg-surface p-prompt-column text-text flex-1 min-w-0 flex flex-col gap-prompt-column-gap shrink">
       <div className="flex items-center text-sm font-semibold">
         <span>LATEST</span>
         {image && (

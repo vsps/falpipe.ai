@@ -141,7 +141,7 @@ export function RefImagesColumn() {
     <>
       <div
         ref={panelRef}
-        className={`bg-surface p-[10px] text-text w-[381px] flex flex-col gap-[8px] shrink-0 transition-colors ${
+        className={`bg-surface p-prompt-column text-text w-[381px] flex flex-col gap-prompt-column-gap shrink-0 transition-colors ${
           dragOver ? "outline outline-2 outline-accent" : ""
         }`}
       >
@@ -150,7 +150,7 @@ export function RefImagesColumn() {
           <span className="flex-1" />
           <span className="text-xs opacity-60 font-mono">{refImages.length}</span>
         </div>
-        <div className="flex flex-wrap gap-[8px] content-start overflow-y-auto thin-scroll bg-inset p-[6px] flex-1 min-h-0">
+        <div className="flex flex-wrap gap-prompt-column-gap content-start overflow-y-auto thin-scroll bg-inset p-prompt-panel flex-1 min-h-0">
           {refImages.map((r, idx) => (
             <RefThumb
               key={r.path}

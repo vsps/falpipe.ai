@@ -163,10 +163,16 @@ pub struct AppState {
     pub iterations: u32,
     #[serde(default = "default_gallery_height")]
     pub gallery_height: u32,
+    #[serde(default = "default_thumb_col_width")]
+    pub thumb_col_width: u32,
+    #[serde(default = "default_log_height")]
+    pub log_height: u32,
 }
 
 fn one() -> u32 { 1 }
 fn default_gallery_height() -> u32 { 400 }
+fn default_thumb_col_width() -> u32 { 180 }
+fn default_log_height() -> u32 { 78 }
 
 impl Default for AppState {
     fn default() -> Self {
@@ -181,6 +187,8 @@ impl Default for AppState {
             ref_images: vec![],
             iterations: 1,
             gallery_height: 400,
+            thumb_col_width: 180,
+            log_height: 78,
         }
     }
 }

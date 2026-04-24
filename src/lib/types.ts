@@ -164,6 +164,7 @@ export type AppState = {
   iterations: number;
   galleryHeight: number;
   thumbColWidth: number;
+  logHeight: number;
 };
 
 export type SequenceSidecar = {

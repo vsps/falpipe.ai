@@ -128,7 +128,7 @@ export function Gallery() {
   }
 
   return (
-    <div className="flex flex-1 min-h-0 gap-[5px] bg-panel">
+    <div className="flex flex-1 min-h-0 gap-gallery-surface bg-panel">
       {traceActive && (
         <div className="absolute top-[80px] right-2 z-10 bg-warn/90 text-text px-2 py-1 text-xs font-mono">
           tracing · {traceActive.traceSet.size} images ·{" "}
@@ -137,7 +137,7 @@ export function Gallery() {
           </button>
         </div>
       )}
-      <div className="flex flex-1 gap-[5px] overflow-x-auto overflow-y-hidden thin-scroll min-h-0">
+      <div className="flex flex-1 min-w-0 gap-gallery-surface overflow-x-auto overflow-y-hidden thin-scroll min-h-0">
         {columns.length === 0 ? (
           <div className="text-sm text-dim p-4">Open a shot to see its versions.</div>
         ) : (
@@ -151,6 +151,15 @@ export function Gallery() {
                 onImageAction={onImageAction}
               />
             ))}
+            {session.shotPath && (
+              <button
+                className="bg-surface px-3 py-2 flex items-center justify-center shrink-0"
+                title="Add new version"
+                onClick={onAddNewVersion}
+              >
+                <IconBtn name="add" size={22} />
+              </button>
+            )}
             <ResizeBar
               orientation="vertical"
               value={thumbColWidth}
@@ -160,15 +169,6 @@ export function Gallery() {
           </>
         )}
       </div>
-      {session.shotPath && (
-        <button
-          className="bg-surface px-3 py-2 flex items-center justify-center"
-          title="Add new version"
-          onClick={onAddNewVersion}
-        >
-          <IconBtn name="add" size={22} />
-        </button>
-      )}
 
       {zoomImage && (
         <ImageZoomModal

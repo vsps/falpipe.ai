@@ -22,6 +22,17 @@
   --text-xs: 11px;
   --text-sm: 12px;
   --text-base: 13px;
+
+  /* Layout spacing tokens — edit once, propagates everywhere.
+     Usage: p-prompt-column, gap-gallery-column-gap, etc. */
+  --spacing-prompt-surface: 2px;        /* gap between prompt columns (+ app shell pad) */
+  --spacing-prompt-column: 5px;        /* padding inside each prompt column */
+  --spacing-prompt-column-gap: 8px;     /* vertical gap inside a prompt column */
+  --spacing-prompt-panel: 10px;          /* padding of the inset panel (textarea / grid / preview) */
+
+  --spacing-gallery-surface: 2px;       /* gap between gallery columns */
+  --spacing-gallery-column: 5px;        /* padding inside a gallery column */
+  --spacing-gallery-column-gap: 2px;    /* gap between thumbs within a column */
 }
 
 html,

@@ -27,6 +27,8 @@ export default function App() {
   const setTrace = useSessionStore((s) => s.setTrace);
   const galleryHeight = useSessionStore((s) => s.galleryHeight);
   const setGalleryHeight = useSessionStore((s) => s.setGalleryHeight);
+  const logHeight = useSessionStore((s) => s.logHeight);
+  const setLogHeight = useSessionStore((s) => s.setLogHeight);
 
   useEffect(() => {
     let dispose: (() => void) | null = null;
@@ -65,10 +67,10 @@ export default function App() {
   }, [traceActive, setTrace]);
 
   return (
-    <div className="flex h-full w-full flex-col gap-[5px] bg-bg p-[5px] text-text">
+    <div className="flex h-full w-full flex-col gap-prompt-surface bg-bg p-prompt-surface text-text">
       <SessionBar onOpenSettings={() => setSettingsOpen(true)} />
 
-      <div className="flex flex-1 min-h-0 gap-[5px] bg-panel overflow-hidden">
+      <div className="flex flex-1 min-h-0 gap-prompt-surface bg-panel overflow-hidden">
         <ModelSettingsColumn />
         <PromptColumn scope="sequence" title="SEQUENCE PROMPT" />
         <PromptColumn scope="shot" title="SHOT PROMPT" />
@@ -91,7 +93,14 @@ export default function App() {
         <Gallery />
       </div>
 
-      <LogWindow />
+      <ResizeBar
+        orientation="horizontal"
+        value={logHeight}
+        onChange={setLogHeight}
+        grow="up"
+      />
+
+      <LogWindow height={logHeight} />
       <StatusBar ready={ready} bootError={bootError} />
       <ErrorPopup />
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}

@@ -8,23 +8,27 @@ const LEVEL_CLASS: Record<string, string> = {
   ERROR: "text-bad",
 };
 
-export function LogWindow() {
+const LINE_H = 14;
+const PAD_V = 8; // py-1 = 4px top + 4px bottom
+
+export function LogWindow({ height }: { height: number }) {
   const lines = useLogStore((s) => s.lines);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!ref.current) return;
     ref.current.scrollTop = ref.current.scrollHeight;
-  }, [lines.length]);
+  }, [lines.length, height]);
 
-  // Show the last 5 lines only (rolling window per spec).
-  const visible = lines.slice(-5);
+  // Rolling window sized to the available rows — grows/shrinks with the drag.
+  const rows = Math.max(1, Math.floor((height - PAD_V) / LINE_H));
+  const visible = lines.slice(-rows);
 
   return (
     <div
       ref={ref}
-      className="bg-panel text-dim px-2 py-1 font-mono overflow-hidden flex flex-col"
-      style={{ fontSize: 11, height: 5 * 14 + 8 }}
+      className="bg-panel text-dim px-2 py-1 font-mono overflow-hidden flex flex-col shrink-0"
+      style={{ fontSize: 11, height: `${height}px` }}
     >
       {visible.length === 0 ? (
         <span className="opacity-40">—</span>
