@@ -8,7 +8,7 @@
 
 A desktop GUI for [fal.ai](https://fal.ai) built around a **project / sequence / shot** file layout — meant for iterating on generative image & video shots as part of a larger production pipeline at speed while saving all media to disk.
 
-This tool was designed as an antidote to overcomplicated node graphs which in many cases end up quite linear regardless. Complexity is not a flex.
+This tool was designed as an antidote to overcomplicated node graphs which in many cases end up quite linear regardless. **Complexity is not a flex**.
 
 Built with React + Tailwind (frontend) on a Rust + Tauri (native) host. Windows is the primary target; macOS and Linux should build from source.
 
@@ -19,7 +19,7 @@ ENTIRELY VIBE CODED SO GOOD LUCK EVERYBODY!
 
 ## Features
 
-- **Model library driven by JSON** — drop a file in `models/` and the app picks it up. Ships with FLUX, Nano Banana 2 / Pro, Veo3, Kling 3 (image + video), and Topaz Upscale.
+- **Model library driven by JSON** — drop a file in `models/` and the app picks it up. Ships with FLUX, Nano Banana 2 / Pro, Veo3, Kling 3 (image + video), and Topaz Upscale. Now also GPT Image 2.
 - **Project → sequence → shot layout** — results and reference images are organized on disk so you can version shots and track iterations.
 - **Prompt history** — per-sequence and per-shot prompts are saved as sidecars and navigable with ←/→ arrows.
 - **Reference images with roles** — start frame, end frame, source, or `@ElementN` groups (with a "frontal" flag) that map onto Kling 3's nested element payload. Drag to reorder; drop OS files into the REF_IMAGES panel to add.
