@@ -16,11 +16,26 @@ ENTIRELY VIBE CODED SO GOOD LUCK EVERYBODY!
 
 ![falPipe](https://github.com/user-attachments/assets/8750222f-635d-4d88-b7d3-e0cfbaf3383d)
 
+## CURRENTLY AVAILABLE MODELS
 
-## Features
+**Image**
 
-- **Model library driven by JSON** — drop a file in `models/` and the app picks it up. Ships with FLUX, Nano Banana 2 / Pro, Veo3, Kling 3 (image + video), and Topaz Upscale. Now also GPT Image 2.
+- Nano Banana 2
+- Nano Banana Pro
+- Flux
+- GPT Image 2.0
+
+**Video**
+
+- Veo 3.1
+- Kling 3
+- Happy Horse
+- Topaz
+
+## Other Features
+
 - **Project → sequence → shot layout** — results and reference images are organized on disk so you can version shots and track iterations.
+- **Multishot-prompting** - the main shot prompt can be broken into multiple sections to make editing of multi-shot promts easier.
 - **Prompt history** — per-sequence and per-shot prompts are saved as sidecars and navigable with ←/→ arrows.
 - **Reference images with roles** — start frame, end frame, source, or `@ElementN` groups (with a "frontal" flag) that map onto Kling 3's nested element payload. Drag to reorder; drop OS files into the REF_IMAGES panel to add.
 - **Gallery** — every generation writes alongside its metadata; each shot has a SRC column (inputs) plus `v001/`, `v002/`, … version columns (outputs).
