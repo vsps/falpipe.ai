@@ -34,7 +34,7 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction }: 
         <span className="flex-1 truncate">{column.version}</span>
         {!column.isSrc && (
           <IconBtn
-            name="folder_delete"
+            name="delete"
             size={18}
             title="Delete version folder"
             onClick={(e) => {

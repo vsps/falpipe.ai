@@ -92,7 +92,7 @@ function IntControl({
   onChange: (v: unknown) => void;
 }) {
   const span = param.max - param.min;
-  if (span <= 10 && span > 0) {
+  if (span <= 14 && span > 0) {
     const opts: { value: number; label: string }[] = [];
     for (let i = param.min; i <= param.max; i++) opts.push({ value: i, label: String(i) });
     return <ToggleGroup value={value} options={opts} onChange={onChange} />;

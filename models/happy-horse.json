@@ -15,7 +15,7 @@
       "parameters": [
         { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1", "4:3", "3:4"] },
         { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1080p", "options": ["720p", "1080p"] },
-        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "duration", "label": "Duration", "type": "int", "api_field": "duration", "default": 5, "min": 3, "max": 15 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
@@ -36,7 +36,7 @@
       ],
       "parameters": [
         { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1080p", "options": ["720p", "1080p"] },
-        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "duration", "label": "Duration", "type": "int", "api_field": "duration", "default": 5, "min": 3, "max": 15 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
@@ -55,7 +55,7 @@
       "parameters": [
         { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "16:9", "options": ["16:9", "9:16", "1:1", "4:3", "3:4"] },
         { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1080p", "options": ["720p", "1080p"] },
-        { "name": "duration", "label": "Duration", "type": "enum", "api_field": "duration", "default": "5", "options": ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"] },
+        { "name": "duration", "label": "Duration", "type": "int", "api_field": "duration", "default": 5, "min": 3, "max": 15 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
