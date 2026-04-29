@@ -32,11 +32,11 @@ function SvgIcon({ raw, size }: { raw: string; size: number }) {
 }
 
 export function RunColumn() {
-  const { iterations, setIterations, generating, currentModel, sequencePrompt, shotPrompt } =
+  const { iterations, setIterations, generating, currentModel, sequencePrompt, shotPrompts } =
     useGenerationStore();
   const { shotPath, targetVersion, createNextVersion } = useSessionStore();
 
-  const hasPrompt = (sequencePrompt + shotPrompt).trim().length > 0;
+  const hasPrompt = (sequencePrompt + shotPrompts.join("")).trim().length > 0;
   const canRun = !generating && !!currentModel && !!shotPath && targetVersion !== "SRC" && hasPrompt;
 
   const disabledReason = !currentModel

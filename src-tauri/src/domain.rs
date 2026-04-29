@@ -153,8 +153,12 @@ pub struct AppState {
     pub last_model: String,
     #[serde(default)]
     pub sequence_prompt: String,
+    /// Legacy single-string shot prompt. Read for back-compat; new code writes
+    /// `shot_prompts` instead. Kept here so older saved AppState still loads.
     #[serde(default)]
     pub shot_prompt: String,
+    #[serde(default)]
+    pub shot_prompts: Vec<String>,
     #[serde(default)]
     pub settings: Value,
     #[serde(default)]
@@ -183,6 +187,7 @@ impl Default for AppState {
             last_model: String::new(),
             sequence_prompt: String::new(),
             shot_prompt: String::new(),
+            shot_prompts: vec![],
             settings: Value::Object(Default::default()),
             ref_images: vec![],
             iterations: 1,

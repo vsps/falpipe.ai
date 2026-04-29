@@ -158,7 +158,9 @@ export type AppState = {
   lastShot: string;
   lastModel: string;
   sequencePrompt: string;
+  /** Legacy single-string shot prompt — read for back-compat only; new state lives in shotPrompts. */
   shotPrompt: string;
+  shotPrompts: string[];
   settings: Record<string, unknown>;
   refImages: RefImage[];
   iterations: number;

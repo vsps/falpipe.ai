@@ -14,6 +14,7 @@ function emptyAppState(): AppState {
     lastModel: "",
     sequencePrompt: "",
     shotPrompt: "",
+    shotPrompts: [""],
     settings: {},
     refImages: [],
     iterations: 1,
@@ -32,7 +33,9 @@ function currentAppState(): AppState {
     lastShot: basename(s.shotPath),
     lastModel: g.currentModel?.id ?? "",
     sequencePrompt: g.sequencePrompt,
-    shotPrompt: g.shotPrompt,
+    // Keep legacy `shotPrompt` empty — the canonical store is `shotPrompts`.
+    shotPrompt: "",
+    shotPrompts: g.shotPrompts,
     settings: g.settings,
     refImages: g.refImages,
     iterations: g.iterations,
@@ -73,7 +76,14 @@ export async function bootstrap(): Promise<() => void> {
     }
   }
   gen.setSequencePrompt(appState.sequencePrompt ?? "");
-  gen.setShotPrompt(appState.shotPrompt ?? "");
+  // Migration: prefer the new array; fall back to the legacy single string.
+  const persistedShotPrompts =
+    Array.isArray(appState.shotPrompts) && appState.shotPrompts.length > 0
+      ? appState.shotPrompts
+      : appState.shotPrompt
+      ? [appState.shotPrompt]
+      : [""];
+  gen.setShotPrompts(persistedShotPrompts);
   gen.setIterations(appState.iterations ?? 1);
   useGenerationStore.setState({ refImages: appState.refImages ?? [] });
 

@@ -4,7 +4,8 @@ import type { ModelNode, Parameter, RefImage, RoleAssignment } from "../lib/type
 type State = {
   currentModel: ModelNode | null;
   sequencePrompt: string;
-  shotPrompt: string;
+  /** Always >= 1 entry. Multiple boxes are concatenated with `\n\n` at submit. */
+  shotPrompts: string[];
   settings: Record<string, unknown>;
   refImages: RefImage[];
   iterations: number;
@@ -20,7 +21,10 @@ type State = {
 type Actions = {
   selectModel: (model: ModelNode | null) => void;
   setSequencePrompt: (value: string) => void;
-  setShotPrompt: (value: string) => void;
+  setShotPrompts: (values: string[]) => void;
+  setShotPromptAt: (idx: number, value: string) => void;
+  addShotPromptAfter: (idx: number) => void;
+  removeShotPromptAt: (idx: number) => void;
   setSetting: (key: string, value: unknown) => void;
   setIterations: (n: number) => void;
 
@@ -70,7 +74,7 @@ function ensureFrontals(refs: RefImage[]): RefImage[] {
 export const useGenerationStore = create<State & Actions>((set, get) => ({
   currentModel: null,
   sequencePrompt: "",
-  shotPrompt: "",
+  shotPrompts: [""],
   settings: {},
   refImages: [],
   iterations: 1,
@@ -87,8 +91,36 @@ export const useGenerationStore = create<State & Actions>((set, get) => ({
   setSequencePrompt(value) {
     set({ sequencePrompt: value });
   },
-  setShotPrompt(value) {
-    set({ shotPrompt: value });
+  setShotPrompts(values) {
+    // Always keep at least one box so the UI never collapses to nothing.
+    set({ shotPrompts: values.length > 0 ? values : [""] });
+  },
+  setShotPromptAt(idx, value) {
+    set((s) => {
+      if (idx < 0 || idx >= s.shotPrompts.length) return {} as Partial<State>;
+      const next = s.shotPrompts.slice();
+      next[idx] = value;
+      return { shotPrompts: next };
+    });
+  },
+  addShotPromptAfter(idx) {
+    set((s) => {
+      const insertAt = Math.max(0, Math.min(s.shotPrompts.length, idx + 1));
+      const next = s.shotPrompts.slice();
+      next.splice(insertAt, 0, "");
+      return { shotPrompts: next };
+    });
+  },
+  removeShotPromptAt(idx) {
+    set((s) => {
+      // Refuse to remove the only remaining box — the column always shows one.
+      if (s.shotPrompts.length <= 1 || idx < 0 || idx >= s.shotPrompts.length) {
+        return {} as Partial<State>;
+      }
+      const next = s.shotPrompts.slice();
+      next.splice(idx, 1);
+      return { shotPrompts: next };
+    });
   },
   setSetting(key, value) {
     set((s) => ({ settings: { ...s.settings, [key]: value } }));

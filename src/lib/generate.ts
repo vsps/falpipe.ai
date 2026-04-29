@@ -63,8 +63,9 @@ export async function runGeneration(): Promise<void> {
     return;
   }
 
+  const shotCombined = gen.shotPrompts.map((s) => s.trim()).filter((s) => s.length > 0).join("\n\n");
   const combined =
-    [gen.sequencePrompt, gen.shotPrompt].filter((s) => s.trim().length > 0).join("\n\n");
+    [gen.sequencePrompt, shotCombined].filter((s) => s.trim().length > 0).join("\n\n");
   if (combined.length === 0) {
     gen.setError("Both prompts are empty.");
     return;
@@ -101,7 +102,9 @@ export async function runGeneration(): Promise<void> {
   try {
     // Snapshot values at submit time.
     const sequencePrompt = gen.sequencePrompt;
-    const shotPrompt = gen.shotPrompt;
+    const shotPrompts = gen.shotPrompts.slice();
+    // Combined shot prompt (used for the API call and in image metadata).
+    const shotPrompt = shotPrompts.map((s) => s.trim()).filter((s) => s.length > 0).join("\n\n");
     const settings = { ...gen.settings };
     const refs = gen.refImages.slice();
     const iterations = Math.max(1, gen.iterations | 0);
@@ -112,9 +115,16 @@ export async function runGeneration(): Promise<void> {
         const sidecar = await cmd.sequence_prompt_append(session.sequencePath, sequencePrompt);
         useSessionStore.getState().hydrateSequenceSidecar(sidecar);
       }
-      if (shotPrompt.length > 0) {
-        const sidecar = await cmd.shot_prompt_append(session.shotPath, shotPrompt);
-        useSessionStore.getState().hydrateShotSidecar(sidecar);
+      // Append each non-empty box as its own history entry. Rust dedups against
+      // the previous entry, so consecutive identical boxes collapse.
+      let lastShotSidecar = null;
+      for (const p of shotPrompts) {
+        const trimmed = p.trim();
+        if (trimmed.length === 0) continue;
+        lastShotSidecar = await cmd.shot_prompt_append(session.shotPath, trimmed);
+      }
+      if (lastShotSidecar) {
+        useSessionStore.getState().hydrateShotSidecar(lastShotSidecar);
       }
     }
 

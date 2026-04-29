@@ -32,6 +32,9 @@ export function Thumbnail({
   traceActive,
 }: Props) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  // Aspect = height/width. Initial 1 (square) while we probe the natural size,
+  // then we update once the Image loads. Falls back to 1 for missing thumbs.
+  const [aspect, setAspect] = useState<number>(1);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // When selection arrives via keyboard nav the thumb may be offscreen; scroll
@@ -40,20 +43,40 @@ export function Thumbnail({
     if (selected) rootRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [selected]);
 
-  if (hidden) return null;
+  // Probe natural image dimensions to size the thumb to the source aspect ratio.
+  // Resets when srcUrl changes (e.g. version-folder rescans replace paths).
   const srcUrl = image.isVideo ? (image.thumbPath ? fileSrc(image.thumbPath) : null) : fileSrc(image.path);
+  useEffect(() => {
+    if (!srcUrl) {
+      setAspect(1);
+      return;
+    }
+    let cancelled = false;
+    const probe = new window.Image();
+    probe.onload = () => {
+      if (cancelled) return;
+      if (probe.naturalWidth > 0 && probe.naturalHeight > 0) {
+        setAspect(probe.naturalHeight / probe.naturalWidth);
+      }
+    };
+    probe.src = srcUrl;
+    return () => {
+      cancelled = true;
+    };
+  }, [srcUrl]);
+
+  if (hidden) return null;
 
   return (
     <div
       ref={rootRef}
-      className={`group relative w-full shrink-0 overflow-hidden cursor-zoom-in border ${
+      className={`group relative w-full shrink-0 overflow-hidden cursor-pointer border ${
         selected ? "border-accent" : "border-transparent"
       } ${traceActive ? "ring-2 ring-warn" : ""} bg-bg`}
-      style={{ paddingBottom: "100%" }}
+      style={{ paddingBottom: `${aspect * 100}%` }}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
-        onZoom();
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -94,6 +117,7 @@ export function Thumbnail({
         className="absolute top-0 left-0 right-0 flex items-center gap-[2px] bg-bg/80 px-[2px] py-[1px] opacity-0 group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.stopPropagation()}
       >
+        <IconBtn name="zoom_in" size={16} title="Zoom" onClick={onZoom} />
         <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
         <IconBtn name="copy_all" size={16} title="Copy all settings" onClick={onCopySettings} />
         <IconBtn name="content_copy" size={16} title="Copy prompt" onClick={onCopyPrompt} />
