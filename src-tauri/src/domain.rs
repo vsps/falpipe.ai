@@ -103,9 +103,13 @@ pub struct Config {
     pub test_image_path: String,
     #[serde(default)]
     pub ffmpeg_path: String,
+    #[serde(default = "default_max_concurrent_jobs")]
+    pub max_concurrent_jobs: u32,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub colors: Option<ColorOverrides>,
 }
+
+fn default_max_concurrent_jobs() -> u32 { 3 }
 
 impl Default for Config {
     fn default() -> Self {
@@ -118,6 +122,7 @@ impl Default for Config {
             test_mode: false,
             test_image_path: String::new(),
             ffmpeg_path: String::new(),
+            max_concurrent_jobs: default_max_concurrent_jobs(),
             colors: None,
         }
     }

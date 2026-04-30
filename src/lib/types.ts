@@ -149,7 +149,34 @@ export type Config = {
   testMode: boolean;
   testImagePath: string;
   ffmpegPath: string;
+  /** Max number of submissions running in parallel; default 3. */
+  maxConcurrentJobs?: number;
   colors?: ColorOverrides;
+};
+
+// ---------- Submission queue ----------
+
+export type JobStatus =
+  | "queued"
+  | "uploading"
+  | "running"
+  | "downloading"
+  | "cancelling"
+  | "done"
+  | "failed"
+  | "cancelled";
+
+export type Job = {
+  id: string;
+  status: JobStatus;
+  progressMessage: string;
+  currentIteration: number;
+  iterations: number;
+  modelName: string;
+  shotPath: string;
+  targetVersion: string;
+  error?: string;
+  startedAt: number;
 };
 
 export type AppState = {
@@ -232,4 +259,6 @@ export type GenerateCancelledEvent = {
 export type LogEvent = {
   level: "INFO" | "PROGRESS" | "SUCCESS" | "ERROR";
   message: string;
+  /** Short tag used to disambiguate concurrent jobs (e.g. first 6 chars of the job id). */
+  tag?: string;
 };

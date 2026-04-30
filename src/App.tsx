@@ -111,20 +111,28 @@ export default function App() {
 
 function StatusBar({ ready, bootError }: { ready: boolean; bootError: string | null }) {
   const { entries, loaded } = useModelsStore();
-  const { progressMessage, generating, currentIteration, iterations } = useGenerationStore();
+  const jobs = useGenerationStore((s) => s.jobs);
   const { traceActive } = useSessionStore();
+
+  const active = jobs.filter(
+    (j) => j.status !== "done" && j.status !== "failed" && j.status !== "cancelled",
+  );
+  // Surface the latest active job's progress; with multi-job runs the badge in
+  // RunColumn shows the full picture, the status bar just gives the gist.
+  const latest = active[active.length - 1];
+
   return (
     <div className="bg-panel text-dim px-2 py-1 text-xs font-mono whitespace-nowrap overflow-hidden flex items-center gap-4">
       <span>{ready ? "ready" : "booting..."}</span>
       <span>models: {loaded ? entries.length : "…"}</span>
       {bootError && <span className="text-bad">boot error: {bootError}</span>}
-      {generating && (
+      {latest && (
         <span className="text-text">
-          {progressMessage || "Generating..."}
-          {iterations > 1 ? ` · ${currentIteration}/${iterations}` : ""}
+          {latest.progressMessage || "Generating..."}
+          {latest.iterations > 1 ? ` · ${latest.currentIteration}/${latest.iterations}` : ""}
+          {active.length > 1 ? ` · +${active.length - 1} more` : ""}
         </span>
       )}
-      {!generating && progressMessage && <span>{progressMessage}</span>}
       {traceActive && (
         <span className="text-warn">
           tracing · {traceActive.traceSet.size} images (Esc to exit)

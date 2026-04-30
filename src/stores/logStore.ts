@@ -10,7 +10,7 @@ type State = {
 };
 
 type Actions = {
-  push: (level: LogEvent["level"], message: string) => void;
+  push: (level: LogEvent["level"], message: string, tag?: string) => void;
   clear: () => void;
 };
 
@@ -18,11 +18,12 @@ let counter = 0;
 
 export const useLogStore = create<State & Actions>((set) => ({
   lines: [],
-  push(level, message) {
+  push(level, message, tag) {
     const line: LogLine = {
       id: ++counter,
       level,
       message,
+      tag,
       timestamp: new Date().toISOString(),
     };
     set((s) => {
@@ -36,6 +37,6 @@ export const useLogStore = create<State & Actions>((set) => ({
   },
 }));
 
-export function pushLog(level: LogEvent["level"], message: string): void {
-  useLogStore.getState().push(level, message);
+export function pushLog(level: LogEvent["level"], message: string, tag?: string): void {
+  useLogStore.getState().push(level, message, tag);
 }

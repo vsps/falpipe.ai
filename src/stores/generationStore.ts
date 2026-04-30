@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ModelNode, Parameter, RefImage, RoleAssignment } from "../lib/types";
+import type { Job, ModelNode, Parameter, RefImage, RoleAssignment } from "../lib/types";
 
 type State = {
   currentModel: ModelNode | null;
@@ -10,10 +10,9 @@ type State = {
   refImages: RefImage[];
   iterations: number;
 
-  generating: boolean;
-  progressMessage: string;
-  currentIteration: number;
-  generationId: string | null;
+  /** All in-flight, queued, and recently-finished submissions. Finished
+   * entries are pruned on a short tail so the UI can flash success briefly. */
+  jobs: Job[];
 
   errorPopup: string | null;
 };
@@ -34,11 +33,11 @@ type Actions = {
   assignRole: (path: string, role: RoleAssignment | null) => void;
   reorderRefs: (fromIdx: number, toIdx: number) => void;
 
-  setGenerating: (v: boolean) => void;
-  setProgress: (message: string, iter?: number) => void;
-  setGenerationId: (id: string | null) => void;
+  addJob: (job: Job) => void;
+  updateJob: (id: string, patch: Partial<Job>) => void;
+  removeJob: (id: string) => void;
+  clearFinishedJobs: () => void;
   setError: (msg: string | null) => void;
-  resetRuntime: () => void;
 };
 
 function defaultsFor(params: Parameter[]): Record<string, unknown> {
@@ -71,7 +70,7 @@ function ensureFrontals(refs: RefImage[]): RefImage[] {
   });
 }
 
-export const useGenerationStore = create<State & Actions>((set, get) => ({
+export const useGenerationStore = create<State & Actions>((set) => ({
   currentModel: null,
   sequencePrompt: "",
   shotPrompts: [""],
@@ -79,10 +78,7 @@ export const useGenerationStore = create<State & Actions>((set, get) => ({
   refImages: [],
   iterations: 1,
 
-  generating: false,
-  progressMessage: "",
-  currentIteration: 0,
-  generationId: null,
+  jobs: [],
   errorPopup: null,
 
   selectModel(model) {
@@ -197,24 +193,25 @@ export const useGenerationStore = create<State & Actions>((set, get) => ({
     });
   },
 
-  setGenerating(v) {
-    set({ generating: v });
+  addJob(job) {
+    set((s) => ({ jobs: [...s.jobs, job] }));
   },
-  setProgress(message, iter) {
-    set({ progressMessage: message, currentIteration: iter ?? get().currentIteration });
+  updateJob(id, patch) {
+    set((s) => ({
+      jobs: s.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)),
+    }));
   },
-  setGenerationId(id) {
-    set({ generationId: id });
+  removeJob(id) {
+    set((s) => ({ jobs: s.jobs.filter((j) => j.id !== id) }));
+  },
+  clearFinishedJobs() {
+    set((s) => ({
+      jobs: s.jobs.filter(
+        (j) => j.status !== "done" && j.status !== "failed" && j.status !== "cancelled",
+      ),
+    }));
   },
   setError(msg) {
     set({ errorPopup: msg });
-  },
-  resetRuntime() {
-    set({
-      generating: false,
-      progressMessage: "",
-      currentIteration: 0,
-      generationId: null,
-    });
   },
 }));

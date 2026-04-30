@@ -17,6 +17,7 @@ const DEFAULT: Config = {
   testMode: false,
   testImagePath: "",
   ffmpegPath: "",
+  maxConcurrentJobs: 3,
   colors: undefined,
 };
 
@@ -177,6 +178,27 @@ export function SettingsDialog({ onClose }: Props) {
               <button className="px-2 bg-bg text-xs" onClick={browseFfmpeg}>
                 browse
               </button>
+            </div>
+          </Field>
+
+          <Field label="Max concurrent submissions">
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={config.maxConcurrentJobs ?? 3}
+              onChange={(e) => {
+                const n = parseInt(e.currentTarget.value, 10);
+                setConfig((c) => ({
+                  ...c,
+                  maxConcurrentJobs: Number.isFinite(n) ? Math.max(1, Math.min(10, n)) : 3,
+                }));
+              }}
+              className="bg-bg px-2 py-1 text-xs font-mono w-20"
+              title="Caps how many submissions hit fal.ai in parallel. Extra submits sit in a local queue."
+            />
+            <div className="text-xs text-dim mt-1">
+              Extra submits beyond this cap wait in a local queue.
             </div>
           </Field>
 

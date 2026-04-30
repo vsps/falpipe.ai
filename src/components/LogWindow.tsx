@@ -37,9 +37,10 @@ export function LogWindow({ height }: { height: number }) {
           <div
             key={l.id}
             className={`truncate ${LEVEL_CLASS[l.level] ?? "text-text"}`}
-            title={`${l.timestamp} ${l.level} ${l.message}`}
+            title={`${l.timestamp} ${l.level} ${l.tag ? `[${l.tag}] ` : ""}${l.message}`}
           >
-            <span className="opacity-60">{formatTime(l.timestamp)}</span> {l.message}
+            <span className="opacity-60">{formatTime(l.timestamp)}</span>
+            {l.tag && <span className="opacity-60"> [{l.tag}]</span>} {l.message}
           </div>
         ))
       )}

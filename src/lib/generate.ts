@@ -9,6 +9,7 @@ import { pushLog } from "../stores/logStore";
 import type {
   Config,
   ImageMetadata,
+  Job,
   ModelNode,
   RefImage,
   RefRoleSpec,
@@ -19,9 +20,40 @@ import { useSessionStore } from "../stores/sessionStore";
 
 // ---------- Orchestration entry ----------
 
-let currentController: AbortController | null = null;
+// Per-job AbortController. Keyed by job id so cancellation can target one or all.
+const abortControllers = new Map<string, AbortController>();
+
+// Snapshotted spec per queued job. Held outside the store because the runtime
+// payload (model node, ref roles, ffmpeg path, …) is heavier than what the UI
+// needs to render and would bloat the persisted store shape.
+const jobSpecs = new Map<string, JobSpec>();
+
+// Cached at queue-pump time. Reads Config asynchronously, so we keep a value
+// to use synchronously inside the pump loop. Default 3 matches the schema.
+let cachedMaxConcurrent = 3;
+
+// Reentrancy guard for pumpQueue. The pump itself is async because it calls
+// runJob; without this flag, two enqueues could race and over-dispatch.
+let pumping = false;
 
 type UploadedRef = { ref: RefImage; url: string };
+
+type JobSpec = {
+  id: string;
+  tag: string; // short id for log lines
+  node: ModelNode;
+  sequencePrompt: string;
+  shotPrompts: string[];
+  shotPrompt: string; // combined; used for API + metadata
+  settings: Record<string, unknown>;
+  refs: RefImage[];
+  iterations: number;
+  shotPath: string;
+  targetVersion: string;
+  testMode: boolean;
+  testImagePath: string;
+  ffmpegPath: string;
+};
 
 /** Preflight ref-role check. Returns false when the user cancels. */
 async function preflightRefs(node: ModelNode, refs: RefImage[]): Promise<boolean> {
@@ -45,7 +77,12 @@ async function preflightRefs(node: ModelNode, refs: RefImage[]): Promise<boolean
   );
 }
 
-export async function runGeneration(): Promise<void> {
+/**
+ * Snapshot the current generation form into a Job + JobSpec, push the job onto
+ * the queue, and kick the dispatcher. Multiple calls accumulate; the pump
+ * respects `Config.maxConcurrentJobs` and the rest sit at status:queued.
+ */
+export async function enqueueGeneration(): Promise<void> {
   const gen = useGenerationStore.getState();
   const session = useSessionStore.getState();
 
@@ -71,14 +108,12 @@ export async function runGeneration(): Promise<void> {
     return;
   }
 
-  // Preflight: if the model expects a start frame and/or element references,
-  // warn when none of the loaded refs carry either role. Lets the user proceed
-  // anyway (some endpoints accept empty refs even if a role is advertised).
   if (!(await preflightRefs(node, gen.refImages))) return;
 
   const config = (await cmd.config_load().catch(() => null)) as Config | null;
   const testMode = !!config?.testMode && !!config?.testImagePath;
   const ffmpegPath = config?.ffmpegPath ?? "";
+  cachedMaxConcurrent = Math.max(1, config?.maxConcurrentJobs ?? 3);
 
   if (!testMode) {
     const falKey = await cmd.fal_key_get().catch(() => "");
@@ -89,212 +124,316 @@ export async function runGeneration(): Promise<void> {
     fal.config({ credentials: falKey });
   }
 
-  const controller = new AbortController();
-  currentController = controller;
+  // Resolve target version up front so the job is bound to a concrete (shot,
+  // version) at submit time even if the user navigates away mid-flight.
+  let targetVersion = session.targetVersion;
+  if (!targetVersion || targetVersion === "SRC") {
+    targetVersion = await cmd.version_create_next(session.shotPath);
+    useSessionStore.setState({ targetVersion });
+  }
 
-  const generationId = crypto.randomUUID();
-  gen.setGenerationId(generationId);
-  gen.setGenerating(true);
+  const id = crypto.randomUUID();
+  const tag = id.slice(0, 6);
+  const shotPrompts = gen.shotPrompts.slice();
+  const shotPrompt = shotPrompts.map((s) => s.trim()).filter((s) => s.length > 0).join("\n\n");
+  const iterations = Math.max(1, gen.iterations | 0);
+
+  const spec: JobSpec = {
+    id,
+    tag,
+    node,
+    sequencePrompt: gen.sequencePrompt,
+    shotPrompts,
+    shotPrompt,
+    settings: { ...gen.settings },
+    refs: gen.refImages.slice(),
+    iterations,
+    shotPath: session.shotPath,
+    targetVersion,
+    testMode,
+    testImagePath: config?.testImagePath ?? "",
+    ffmpegPath,
+  };
+  jobSpecs.set(id, spec);
+
+  const job: Job = {
+    id,
+    status: "queued",
+    progressMessage: "Queued",
+    currentIteration: 0,
+    iterations,
+    modelName: node.name,
+    shotPath: session.shotPath,
+    targetVersion,
+    startedAt: performance.now(),
+  };
+  gen.addJob(job);
   gen.setError(null);
 
-  pushLog("INFO", testMode ? "Test-mode generation" : `Generating with ${node.name}`);
+  pushLog("INFO", testMode ? "Test-mode generation queued" : `Queued: ${node.name}`, tag);
 
-  try {
-    // Snapshot values at submit time.
-    const sequencePrompt = gen.sequencePrompt;
-    const shotPrompts = gen.shotPrompts.slice();
-    // Combined shot prompt (used for the API call and in image metadata).
-    const shotPrompt = shotPrompts.map((s) => s.trim()).filter((s) => s.length > 0).join("\n\n");
-    const settings = { ...gen.settings };
-    const refs = gen.refImages.slice();
-    const iterations = Math.max(1, gen.iterations | 0);
-
-    // 1. Append prompt histories (skip in test mode).
-    if (!testMode) {
-      if (session.sequencePath && sequencePrompt.length > 0) {
-        const sidecar = await cmd.sequence_prompt_append(session.sequencePath, sequencePrompt);
+  // Append prompt histories synchronously at submit time so the navigation UI
+  // reflects the latest prompts even before the job is dispatched.
+  if (!testMode) {
+    if (session.sequencePath && spec.sequencePrompt.length > 0) {
+      try {
+        const sidecar = await cmd.sequence_prompt_append(session.sequencePath, spec.sequencePrompt);
         useSessionStore.getState().hydrateSequenceSidecar(sidecar);
-      }
-      // Append each non-empty box as its own history entry. Rust dedups against
-      // the previous entry, so consecutive identical boxes collapse.
-      let lastShotSidecar = null;
-      for (const p of shotPrompts) {
-        const trimmed = p.trim();
-        if (trimmed.length === 0) continue;
-        lastShotSidecar = await cmd.shot_prompt_append(session.shotPath, trimmed);
-      }
-      if (lastShotSidecar) {
-        useSessionStore.getState().hydrateShotSidecar(lastShotSidecar);
+      } catch {
+        /* swallow — history append failures are non-fatal */
       }
     }
+    let lastShotSidecar = null;
+    for (const p of spec.shotPrompts) {
+      const trimmed = p.trim();
+      if (trimmed.length === 0) continue;
+      try {
+        lastShotSidecar = await cmd.shot_prompt_append(spec.shotPath, trimmed);
+      } catch {
+        /* swallow */
+      }
+    }
+    if (lastShotSidecar) {
+      useSessionStore.getState().hydrateShotSidecar(lastShotSidecar);
+    }
+  }
 
-    if (testMode) {
-      await runTestMode({
-        iterations,
-        shotPath: session.shotPath,
-        node,
-        sequencePrompt,
-        shotPrompt,
-        settings,
-        refs,
-        testImagePath: config!.testImagePath,
-        controller,
-      });
+  void pumpQueue();
+}
+
+function activeJobCount(): number {
+  return useGenerationStore.getState().jobs.filter((j) => {
+    return (
+      j.status !== "queued" &&
+      j.status !== "done" &&
+      j.status !== "failed" &&
+      j.status !== "cancelled"
+    );
+  }).length;
+}
+
+/**
+ * Dispatcher. Picks the next queued job whenever an in-flight slot is free.
+ * Reentrancy-guarded: a single loop drains the queue up to the cap, then
+ * exits. Called from enqueueGeneration and from each job's finally.
+ */
+async function pumpQueue(): Promise<void> {
+  if (pumping) return;
+  pumping = true;
+  try {
+    while (true) {
+      const state = useGenerationStore.getState();
+      const queued = state.jobs.find((j) => j.status === "queued");
+      if (!queued) break;
+      if (activeJobCount() >= cachedMaxConcurrent) break;
+
+      const spec = jobSpecs.get(queued.id);
+      if (!spec) {
+        // Defensive: drop a queued job with no spec rather than spinning.
+        state.removeJob(queued.id);
+        continue;
+      }
+      // Fire-and-forget. runJob calls pumpQueue itself in finally, which is a
+      // no-op while we're still inside this loop (pumping=true).
+      void runJob(spec);
+    }
+  } finally {
+    pumping = false;
+  }
+}
+
+/** Cancel every queued and running job, plus best-effort server-side cancel. */
+export function cancelAllGenerations(): void {
+  const state = useGenerationStore.getState();
+  for (const j of state.jobs) {
+    if (j.status === "done" || j.status === "failed" || j.status === "cancelled") continue;
+    if (j.status === "queued") {
+      jobSpecs.delete(j.id);
+      state.updateJob(j.id, { status: "cancelled", progressMessage: "Cancelled" });
+      schedulePrune(j.id);
+      pushLog("INFO", "Cancelled (was queued)", j.id.slice(0, 6));
+      continue;
+    }
+    state.updateJob(j.id, { status: "cancelling", progressMessage: "Cancelling…" });
+    abortControllers.get(j.id)?.abort();
+  }
+}
+
+function schedulePrune(jobId: string, delayMs = 5000): void {
+  setTimeout(() => {
+    useGenerationStore.getState().removeJob(jobId);
+    jobSpecs.delete(jobId);
+  }, delayMs);
+}
+
+/** Runs one job to completion / cancellation / failure. */
+async function runJob(spec: JobSpec): Promise<void> {
+  const gen = useGenerationStore.getState();
+  const tag = spec.tag;
+
+  const controller = new AbortController();
+  abortControllers.set(spec.id, controller);
+
+  gen.updateJob(spec.id, { status: "uploading", progressMessage: "Uploading references…" });
+  pushLog("INFO", spec.testMode ? "Test-mode start" : `Generating with ${spec.node.name}`, tag);
+
+  try {
+    if (spec.testMode) {
+      await runTestMode(spec, controller);
       if (!controller.signal.aborted) {
-        gen.setProgress(`Test-mode generated ${iterations} file(s)`);
-        pushLog("SUCCESS", `Test-mode generated ${iterations} file(s)`);
+        gen.updateJob(spec.id, {
+          status: "done",
+          progressMessage: `Test-mode generated ${spec.iterations} file(s)`,
+        });
+        pushLog("SUCCESS", `Test-mode generated ${spec.iterations} file(s)`, tag);
       }
       return;
     }
 
-    // 2. Upload refs once, keyed by path.
-    gen.setProgress("Uploading references...");
-    const uploaded = await uploadRefs(refs, controller.signal);
+    const uploaded = await uploadRefs(spec.refs, controller.signal);
     if (controller.signal.aborted) throw new DOMException("aborted", "AbortError");
 
-    // 3. Build base args.
-    const baseArgs = buildArgs(node, sequencePrompt, shotPrompt, settings, uploaded);
+    const baseArgs = buildArgs(spec.node, spec.sequencePrompt, spec.shotPrompt, spec.settings, uploaded);
+    const versionDir = joinPath(spec.shotPath, spec.targetVersion);
 
-    // 4. Iteration dispatch.
-    const batched = !!node.batch_field && iterations > 1;
+    const batched = !!spec.node.batch_field && spec.iterations > 1;
     const totalOutputs: string[] = [];
 
+    gen.updateJob(spec.id, { status: "running" });
+
     if (batched) {
-      const args = { ...baseArgs, [node.batch_field!]: iterations };
-      gen.setProgress("Generating...", 1);
+      const args = { ...baseArgs, [spec.node.batch_field!]: spec.iterations };
+      reportJobQueue(spec.id, 1, spec.iterations, { status: "IN_PROGRESS" } as QueueStatus);
       const res = await subscribeCancelable(
-        node.endpoint,
+        spec.node.endpoint,
         args,
-        (u) => reportQueue(u, 1, iterations),
+        (u) => reportJobQueue(spec.id, 1, spec.iterations, u),
         controller.signal,
       );
-      const { versionDir, targetVersion: tv } = await resolveTargetAtWriteTime(session.shotPath);
+      gen.updateJob(spec.id, { status: "downloading", progressMessage: "Downloading…" });
       const outs = await downloadAndWrite({
         result: res.data,
-        node,
-        sequencePrompt,
-        shotPrompt,
-        settings,
+        node: spec.node,
+        sequencePrompt: spec.sequencePrompt,
+        shotPrompt: spec.shotPrompt,
+        settings: spec.settings,
         refs: uploaded,
         versionDir,
-        targetVersion: tv,
+        targetVersion: spec.targetVersion,
         iterationBase: 1,
-        iterationTotal: iterations,
+        iterationTotal: spec.iterations,
         expandToIterations: true,
-        ffmpegPath,
+        ffmpegPath: spec.ffmpegPath,
       });
       totalOutputs.push(...outs);
     } else {
-      for (let k = 1; k <= iterations; k++) {
+      for (let k = 1; k <= spec.iterations; k++) {
         if (controller.signal.aborted) break;
-        gen.setProgress(`Generating (${k}/${iterations})...`, k);
+        gen.updateJob(spec.id, {
+          status: "running",
+          currentIteration: k,
+          progressMessage: `Generating (${k}/${spec.iterations})…`,
+        });
         const res = await subscribeCancelable(
-          node.endpoint,
+          spec.node.endpoint,
           baseArgs,
-          (u) => reportQueue(u, k, iterations),
+          (u) => reportJobQueue(spec.id, k, spec.iterations, u),
           controller.signal,
         );
-        const { versionDir, targetVersion: tv } = await resolveTargetAtWriteTime(session.shotPath);
+        gen.updateJob(spec.id, { status: "downloading", progressMessage: `Downloading (${k}/${spec.iterations})…` });
         const outs = await downloadAndWrite({
           result: res.data,
-          node,
-          sequencePrompt,
-          shotPrompt,
-          settings,
+          node: spec.node,
+          sequencePrompt: spec.sequencePrompt,
+          shotPrompt: spec.shotPrompt,
+          settings: spec.settings,
           refs: uploaded,
           versionDir,
-          targetVersion: tv,
+          targetVersion: spec.targetVersion,
           iterationBase: k,
-          iterationTotal: iterations,
+          iterationTotal: spec.iterations,
           expandToIterations: false,
-          ffmpegPath,
+          ffmpegPath: spec.ffmpegPath,
         });
         totalOutputs.push(...outs);
-        await useSessionStore.getState().rescanShot();
+        // Rescan only when the freshly-written shot is what the user is viewing;
+        // otherwise the gallery would briefly flicker to the job's shot.
+        if (useSessionStore.getState().shotPath === spec.shotPath) {
+          await useSessionStore.getState().rescanShot();
+        }
       }
     }
 
     if (!controller.signal.aborted) {
-      gen.setProgress(`Generated ${totalOutputs.length} file(s)`);
-      pushLog("SUCCESS", `Generated ${totalOutputs.length} file(s)`);
-      await useSessionStore.getState().rescanShot();
+      gen.updateJob(spec.id, {
+        status: "done",
+        progressMessage: `Generated ${totalOutputs.length} file(s)`,
+      });
+      pushLog("SUCCESS", `Generated ${totalOutputs.length} file(s)`, tag);
+      if (useSessionStore.getState().shotPath === spec.shotPath) {
+        await useSessionStore.getState().rescanShot();
+      }
     }
   } catch (e: unknown) {
     const err = e as { name?: string; body?: { detail?: unknown }; message?: string };
     if (err.name === "AbortError" || controller.signal.aborted) {
-      gen.setProgress("Cancelled.");
-      pushLog("INFO", "Cancelled by user");
+      gen.updateJob(spec.id, { status: "cancelled", progressMessage: "Cancelled" });
+      pushLog("INFO", "Cancelled by user", tag);
     } else {
       const msg = extractErrorMessage(err);
+      gen.updateJob(spec.id, { status: "failed", progressMessage: "Failed", error: msg });
       gen.setError(msg);
-      pushLog("ERROR", msg);
+      pushLog("ERROR", msg, tag);
     }
   } finally {
-    gen.resetRuntime();
-    currentController = null;
+    abortControllers.delete(spec.id);
+    jobSpecs.delete(spec.id);
+    schedulePrune(spec.id);
+    void pumpQueue();
   }
-}
-
-export function cancelGeneration(): void {
-  if (currentController) currentController.abort();
-}
-
-async function resolveTargetAtWriteTime(
-  shotPath: string,
-): Promise<{ targetVersion: string; versionDir: string }> {
-  let tv = useSessionStore.getState().targetVersion;
-  if (!tv || tv === "SRC") {
-    tv = await cmd.version_create_next(shotPath);
-    useSessionStore.setState({ targetVersion: tv });
-  }
-  return { targetVersion: tv, versionDir: joinPath(shotPath, tv) };
 }
 
 // ---------- Test mode ----------
 
-async function runTestMode(p: {
-  iterations: number;
-  shotPath: string;
-  node: ModelNode;
-  sequencePrompt: string;
-  shotPrompt: string;
-  settings: Record<string, unknown>;
-  refs: RefImage[];
-  testImagePath: string;
-  controller: AbortController;
-}) {
+async function runTestMode(spec: JobSpec, controller: AbortController) {
   const gen = useGenerationStore.getState();
-  for (let k = 1; k <= p.iterations; k++) {
-    if (p.controller.signal.aborted) break;
-    gen.setProgress(`Test mode (${k}/${p.iterations})...`, k);
-    const { versionDir, targetVersion: tv } = await resolveTargetAtWriteTime(p.shotPath);
+  const versionDir = joinPath(spec.shotPath, spec.targetVersion);
+  for (let k = 1; k <= spec.iterations; k++) {
+    if (controller.signal.aborted) break;
+    gen.updateJob(spec.id, {
+      status: "running",
+      currentIteration: k,
+      progressMessage: `Test mode (${k}/${spec.iterations})…`,
+    });
     const ts = tsNow();
-    const filename = `${tv}_${ts}_001.png`;
+    const filename = `${spec.targetVersion}_${ts}_001.png`;
     const target = joinPath(versionDir, filename);
     const deg = Math.floor(Math.random() * 360);
-    await cmd.test_mode_hue_shift(p.testImagePath, target, deg);
+    await cmd.test_mode_hue_shift(spec.testImagePath, target, deg);
     const meta = {
       model: "Test Mode",
       modelId: "test-mode",
       endpoint: "none",
-      sequencePrompt: p.sequencePrompt,
-      shotPrompt: p.shotPrompt,
+      sequencePrompt: spec.sequencePrompt,
+      shotPrompt: spec.shotPrompt,
       combinedPrompt:
-        [p.sequencePrompt, p.shotPrompt]
+        [spec.sequencePrompt, spec.shotPrompt]
           .map((s) => s.trim())
           .filter((s) => s.length > 0)
           .join("\n\n"),
-      settings: p.settings,
-      refs: p.refs.map((r) => ({ path: r.path, roleAssignment: r.roleAssignment })),
+      settings: spec.settings,
+      refs: spec.refs.map((r) => ({ path: r.path, roleAssignment: r.roleAssignment })),
       iterationIndex: k,
-      iterationTotal: p.iterations > 1 ? p.iterations : undefined,
+      iterationTotal: spec.iterations > 1 ? spec.iterations : undefined,
       timestamp: new Date().toISOString(),
       falResponse: null,
       hueShift: deg,
-      sourceImage: p.testImagePath,
+      sourceImage: spec.testImagePath,
     };
     await cmd.image_metadata_write(target, meta as unknown as ImageMetadata);
-    await useSessionStore.getState().rescanShot();
+    if (useSessionStore.getState().shotPath === spec.shotPath) {
+      await useSessionStore.getState().rescanShot();
+    }
   }
 }
 
@@ -338,15 +477,24 @@ async function subscribeCancelable(
   }
 }
 
-function reportQueue(u: QueueStatus, k: number, total: number) {
+function reportJobQueue(jobId: string, k: number, total: number, u: QueueStatus) {
   const gen = useGenerationStore.getState();
   const prefix = total > 1 ? `(${k}/${total}) ` : "";
   if (u.status === "IN_QUEUE") {
-    gen.setProgress(`${prefix}Queued (pos ${u.queue_position})`, k);
+    gen.updateJob(jobId, {
+      currentIteration: k,
+      progressMessage: `${prefix}Queued at fal (pos ${u.queue_position})`,
+    });
   } else if (u.status === "IN_PROGRESS") {
-    gen.setProgress(`${prefix}Generating...`, k);
+    gen.updateJob(jobId, {
+      currentIteration: k,
+      progressMessage: `${prefix}Generating…`,
+    });
   } else if (u.status === "COMPLETED") {
-    gen.setProgress(`${prefix}Downloading...`, k);
+    gen.updateJob(jobId, {
+      currentIteration: k,
+      progressMessage: `${prefix}Downloading…`,
+    });
   }
 }
 
@@ -619,13 +767,17 @@ function buildMetadataRecord(ctx: DownloadCtx, falResponse: unknown, iterationIn
 function tsNow(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
+  const ms = String(d.getMilliseconds()).padStart(3, "0");
+  // Millisecond suffix prevents same-second filename collisions when two
+  // concurrent jobs write to the same versionDir at once.
   return (
     `${d.getFullYear()}` +
     `${p(d.getMonth() + 1)}` +
     `${p(d.getDate())}` +
     `_${p(d.getHours())}` +
     `${p(d.getMinutes())}` +
-    `${p(d.getSeconds())}`
+    `${p(d.getSeconds())}` +
+    `_${ms}`
   );
 }
 

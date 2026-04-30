@@ -1,8 +1,9 @@
 import { Icon } from "../lib/icon";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
-import { cancelGeneration, runGeneration } from "../lib/generate";
+import { cancelAllGenerations, enqueueGeneration } from "../lib/generate";
 import { showMessage } from "../lib/dialog";
+import { basename } from "../lib/paths";
 import playSvg from "../icons/play.svg?raw";
 import playPlusSvg from "../icons/play-plus.svg?raw";
 
@@ -32,12 +33,18 @@ function SvgIcon({ raw, size }: { raw: string; size: number }) {
 }
 
 export function RunColumn() {
-  const { iterations, setIterations, generating, currentModel, sequencePrompt, shotPrompts } =
+  const { iterations, setIterations, currentModel, sequencePrompt, shotPrompts, jobs } =
     useGenerationStore();
   const { shotPath, targetVersion, createNextVersion } = useSessionStore();
 
+  const activeJobs = jobs.filter(
+    (j) => j.status !== "done" && j.status !== "failed" && j.status !== "cancelled",
+  );
+  const queueCount = activeJobs.length;
+
   const hasPrompt = (sequencePrompt + shotPrompts.join("")).trim().length > 0;
-  const canRun = !generating && !!currentModel && !!shotPath && targetVersion !== "SRC" && hasPrompt;
+  // Submit is allowed even while jobs are in flight — extra clicks just enqueue.
+  const canRun = !!currentModel && !!shotPath && targetVersion !== "SRC" && hasPrompt;
 
   const disabledReason = !currentModel
     ? "Pick a model"
@@ -47,12 +54,10 @@ export function RunColumn() {
     ? "Enter a prompt"
     : targetVersion === "SRC"
     ? "SRC is not a valid target"
-    : generating
-    ? "Generating..."
     : "";
 
   // "Submit +version": roll a new version folder (which becomes the target)
-  // and run the generation into it in one click.
+  // and enqueue a generation into it in one click.
   async function runIntoNewVersion() {
     try {
       await createNextVersion();
@@ -60,8 +65,15 @@ export function RunColumn() {
       await showMessage(String(e), { kind: "error" });
       return;
     }
-    await runGeneration();
+    await enqueueGeneration();
   }
+
+  const queueTitle =
+    queueCount === 0
+      ? "No active jobs"
+      : activeJobs
+          .map((j) => `${j.modelName} · ${basename(j.shotPath)}/${j.targetVersion} · ${j.progressMessage}`)
+          .join("\n");
 
   const ICON_SIZE = 54;
 
@@ -79,7 +91,7 @@ export function RunColumn() {
         title={disabledReason || "Submit"}
         disabled={!canRun}
         onClick={() => {
-          void runGeneration();
+          void enqueueGeneration();
         }}
         className={canRun ? "hover:opacity-80 text-accent" : "opacity-40 cursor-not-allowed text-accent"}
       >
@@ -95,11 +107,19 @@ export function RunColumn() {
       >
         <SvgIcon raw={playPlusSvg} size={ICON_SIZE} />
       </button>
+      {queueCount > 0 && (
+        <span
+          className="text-xs font-mono bg-bg text-text px-1 py-[1px] cursor-help"
+          title={queueTitle}
+        >
+          Q: {queueCount}
+        </span>
+      )}
       <button
-        title={generating ? "Cancel" : "Nothing to cancel"}
-        disabled={!generating}
-        onClick={cancelGeneration}
-        className={generating ? "hover:opacity-80" : "opacity-40 cursor-not-allowed"}
+        title={queueCount > 0 ? `Cancel all (${queueCount})` : "Nothing to cancel"}
+        disabled={queueCount === 0}
+        onClick={cancelAllGenerations}
+        className={queueCount > 0 ? "hover:opacity-80" : "opacity-40 cursor-not-allowed"}
       >
         <Icon name="cancel" size={60} />
       </button>
