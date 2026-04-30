@@ -58,7 +58,7 @@ export function ModelPicker() {
           <optgroup label="Image">
             {images.map((e) => (
               <option key={e.node.id} value={e.node.id}>
-                {e.family} · {e.node.name}
+                {e.node.provider ?? "fal"} · {e.node.name}
               </option>
             ))}
           </optgroup>
@@ -67,7 +67,7 @@ export function ModelPicker() {
           <optgroup label="Video">
             {videos.map((e) => (
               <option key={e.node.id} value={e.node.id}>
-                {e.family} · {e.node.name}
+                {e.node.provider ?? "fal"} · {e.node.name}
               </option>
             ))}
           </optgroup>

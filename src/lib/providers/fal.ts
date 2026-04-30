@@ -1,5 +1,6 @@
 import { fal } from "@fal-ai/client";
 import type { QueueStatus } from "@fal-ai/client";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
 import { cmd } from "../tauri";
 import {
@@ -14,7 +15,7 @@ export class FalProvider implements Provider {
   async prepare(): Promise<void> {
     const key = await cmd.provider_key_get("fal").catch(() => "");
     if (!key) throw new Error("FAL_KEY not configured — open Settings.");
-    fal.config({ credentials: key });
+    fal.config({ credentials: key, fetch: tauriFetch as unknown as typeof fetch });
   }
 
   async uploadFile(file: File, _signal: AbortSignal): Promise<string> {

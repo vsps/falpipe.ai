@@ -8,6 +8,11 @@
     "opener:default",
     "dialog:default",
     "window-state:default",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [{ "url": "https://**" }]
+    },
     "fs:default",
     "fs:allow-read-file",
     "fs:allow-read-text-file",

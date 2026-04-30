@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::error::{AppError, AppResult};
+use crate::error::AppResult;
 
 /// Extract a frame from `video_path` into `thumb_path` using the provided ffmpeg binary.
 /// Returns `false` (not an error) when ffmpeg is missing or extraction fails — caller decides.

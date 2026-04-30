@@ -1,4 +1,5 @@
 import Replicate from "replicate";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 
 import { cmd } from "../tauri";
 import {
@@ -26,7 +27,7 @@ export class ReplicateProvider implements Provider {
   async prepare(): Promise<void> {
     const key = await cmd.provider_key_get("replicate").catch(() => "");
     if (!key) throw new Error("REPLICATE_API_TOKEN not configured — open Settings.");
-    this.client = new Replicate({ auth: key });
+    this.client = new Replicate({ auth: key, fetch: tauriFetch as unknown as typeof fetch });
   }
 
   async uploadFile(file: File, _signal: AbortSignal): Promise<string> {
