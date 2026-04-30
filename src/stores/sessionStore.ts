@@ -92,7 +92,7 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
   traceActive: null,
 
   galleryHeight: 400,
-  thumbColWidth: 180,
+  thumbColWidth: THUMB_W_MIN,
   logHeight: 78,
 
   async setProject(projectPath) {

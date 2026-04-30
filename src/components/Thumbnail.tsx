@@ -43,27 +43,10 @@ export function Thumbnail({
     if (selected) rootRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [selected]);
 
-  // Probe natural image dimensions to size the thumb to the source aspect ratio.
-  // Resets when srcUrl changes (e.g. version-folder rescans replace paths).
   const srcUrl = image.isVideo ? (image.thumbPath ? fileSrc(image.thumbPath) : null) : fileSrc(image.path);
-  useEffect(() => {
-    if (!srcUrl) {
-      setAspect(1);
-      return;
-    }
-    let cancelled = false;
-    const probe = new window.Image();
-    probe.onload = () => {
-      if (cancelled) return;
-      if (probe.naturalWidth > 0 && probe.naturalHeight > 0) {
-        setAspect(probe.naturalHeight / probe.naturalWidth);
-      }
-    };
-    probe.src = srcUrl;
-    return () => {
-      cancelled = true;
-    };
-  }, [srcUrl]);
+
+  // Reset aspect when image changes so the old ratio doesn't persist briefly.
+  useEffect(() => { setAspect(1); }, [srcUrl]);
 
   if (hidden) return null;
 
@@ -87,14 +70,16 @@ export function Thumbnail({
       title={image.filename}
     >
       {srcUrl ? (
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `url("${srcUrl}")`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
+        <img
+          src={srcUrl}
+          loading="lazy"
+          decoding="async"
+          alt=""
+          onLoad={(e) => {
+            const el = e.currentTarget;
+            if (el.naturalWidth > 0) setAspect(el.naturalHeight / el.naturalWidth);
           }}
+          className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-dim text-text">

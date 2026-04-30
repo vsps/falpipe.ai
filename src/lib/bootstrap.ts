@@ -19,7 +19,7 @@ function emptyAppState(): AppState {
     refImages: [],
     iterations: 1,
     galleryHeight: 400,
-    thumbColWidth: 180,
+    thumbColWidth: 120,
     logHeight: 78,
   };
 }
