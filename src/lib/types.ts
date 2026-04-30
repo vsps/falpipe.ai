@@ -78,6 +78,8 @@ export type ModelNode = {
   ref_roles?: RefRoleSpec[];
   parameters: Parameter[];
   batch_field?: string;
+  /** Defaults to "fal" when omitted. */
+  provider?: "fal" | "replicate";
 };
 
 export type ModelEntry = {
@@ -151,6 +153,8 @@ export type Config = {
   ffmpegPath: string;
   /** Max number of submissions running in parallel; default 3. */
   maxConcurrentJobs?: number;
+  /** Where SRC lives on disk: per shot (default) or per sequence. */
+  srcScope?: "shot" | "sequence";
   colors?: ColorOverrides;
 };
 
@@ -227,7 +231,10 @@ export type ImageMetadata = {
   iterationIndex?: number;
   iterationTotal?: number;
   timestamp: string;
-  falResponse: unknown;
+  /** New field, written by all providers. */
+  providerResponse?: unknown;
+  /** Legacy field; kept so old sidecars still parse. */
+  falResponse?: unknown;
   hueShift?: number;
   sourceImage?: string;
 };

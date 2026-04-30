@@ -1,6 +1,3 @@
-import { fal } from "@fal-ai/client";
-import type { QueueStatus } from "@fal-ai/client";
-
 import { cmd } from "./tauri";
 import { basename, joinPath } from "./paths";
 import { fileSrc } from "./assets";
@@ -17,6 +14,8 @@ import type {
 } from "./types";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
+import { getProvider } from "./providers";
+import type { ProviderOutput, ProviderProgress } from "./providers";
 
 // ---------- Orchestration entry ----------
 
@@ -116,12 +115,12 @@ export async function enqueueGeneration(): Promise<void> {
   cachedMaxConcurrent = Math.max(1, config?.maxConcurrentJobs ?? 3);
 
   if (!testMode) {
-    const falKey = await cmd.fal_key_get().catch(() => "");
-    if (!falKey) {
-      gen.setError("FAL_KEY not configured — open Settings.");
+    try {
+      await getProvider(node.provider).prepare();
+    } catch (e) {
+      gen.setError(e instanceof Error ? e.message : String(e));
       return;
     }
-    fal.config({ credentials: falKey });
   }
 
   // Resolve target version up front so the job is bound to a concrete (shot,
@@ -290,7 +289,10 @@ async function runJob(spec: JobSpec): Promise<void> {
       return;
     }
 
-    const uploaded = await uploadRefs(spec.refs, controller.signal);
+    const provider = getProvider(spec.node.provider);
+    await provider.prepare();
+
+    const uploaded = await uploadRefs(provider, spec.refs, controller.signal);
     if (controller.signal.aborted) throw new DOMException("aborted", "AbortError");
 
     const baseArgs = buildArgs(spec.node, spec.sequencePrompt, spec.shotPrompt, spec.settings, uploaded);
@@ -303,16 +305,16 @@ async function runJob(spec: JobSpec): Promise<void> {
 
     if (batched) {
       const args = { ...baseArgs, [spec.node.batch_field!]: spec.iterations };
-      reportJobQueue(spec.id, 1, spec.iterations, { status: "IN_PROGRESS" } as QueueStatus);
-      const res = await subscribeCancelable(
+      reportProgress(spec.id, 1, spec.iterations, { kind: "running" });
+      const out = await provider.run(
         spec.node.endpoint,
         args,
-        (u) => reportJobQueue(spec.id, 1, spec.iterations, u),
         controller.signal,
+        (e) => reportProgress(spec.id, 1, spec.iterations, e),
       );
       gen.updateJob(spec.id, { status: "downloading", progressMessage: "Downloading…" });
       const outs = await downloadAndWrite({
-        result: res.data,
+        out,
         node: spec.node,
         sequencePrompt: spec.sequencePrompt,
         shotPrompt: spec.shotPrompt,
@@ -334,15 +336,15 @@ async function runJob(spec: JobSpec): Promise<void> {
           currentIteration: k,
           progressMessage: `Generating (${k}/${spec.iterations})…`,
         });
-        const res = await subscribeCancelable(
+        const out = await provider.run(
           spec.node.endpoint,
           baseArgs,
-          (u) => reportJobQueue(spec.id, k, spec.iterations, u),
           controller.signal,
+          (e) => reportProgress(spec.id, k, spec.iterations, e),
         );
         gen.updateJob(spec.id, { status: "downloading", progressMessage: `Downloading (${k}/${spec.iterations})…` });
         const outs = await downloadAndWrite({
-          result: res.data,
+          out,
           node: spec.node,
           sequencePrompt: spec.sequencePrompt,
           shotPrompt: spec.shotPrompt,
@@ -426,7 +428,7 @@ async function runTestMode(spec: JobSpec, controller: AbortController) {
       iterationIndex: k,
       iterationTotal: spec.iterations > 1 ? spec.iterations : undefined,
       timestamp: new Date().toISOString(),
-      falResponse: null,
+      providerResponse: null,
       hueShift: deg,
       sourceImage: spec.testImagePath,
     };
@@ -437,60 +439,21 @@ async function runTestMode(spec: JobSpec, controller: AbortController) {
   }
 }
 
-// Submit → subscribeToStatus (polling) → result, with server-side cancel on abort.
-// Using the queue API rather than fal.subscribe gives us a requestId we can cancel.
-async function subscribeCancelable(
-  endpoint: string,
-  input: Record<string, unknown>,
-  onQueueUpdate: (u: QueueStatus) => void,
-  signal: AbortSignal,
-): Promise<{ data: unknown }> {
-  if (signal.aborted) throw new DOMException("aborted", "AbortError");
-
-  const enqueued = await fal.queue.submit(endpoint, { input, abortSignal: signal });
-  const requestId = enqueued.request_id;
-
-  // Surface initial queue status (subscribeToStatus may not emit until first poll).
-  onQueueUpdate(enqueued);
-
-  // On abort, fire a best-effort server-side cancel. fal may or may not succeed
-  // depending on whether the job has started running yet.
-  const onAbort = () => {
-    void fal.queue.cancel(endpoint, { requestId }).catch(() => {
-      /* already running / already cancelled */
-    });
-  };
-  signal.addEventListener("abort", onAbort, { once: true });
-
-  try {
-    await fal.queue.subscribeToStatus(endpoint, {
-      requestId,
-      mode: "polling",
-      pollInterval: 1000,
-      onQueueUpdate,
-      abortSignal: signal,
-    });
-    const res = await fal.queue.result(endpoint, { requestId, abortSignal: signal });
-    return { data: res.data };
-  } finally {
-    signal.removeEventListener("abort", onAbort);
-  }
-}
-
-function reportJobQueue(jobId: string, k: number, total: number, u: QueueStatus) {
+function reportProgress(jobId: string, k: number, total: number, e: ProviderProgress) {
   const gen = useGenerationStore.getState();
   const prefix = total > 1 ? `(${k}/${total}) ` : "";
-  if (u.status === "IN_QUEUE") {
+  if (e.kind === "queued") {
+    const pos = e.position !== undefined ? ` (pos ${e.position})` : "";
     gen.updateJob(jobId, {
       currentIteration: k,
-      progressMessage: `${prefix}Queued at fal (pos ${u.queue_position})`,
+      progressMessage: `${prefix}Queued at provider${pos}`,
     });
-  } else if (u.status === "IN_PROGRESS") {
+  } else if (e.kind === "running") {
     gen.updateJob(jobId, {
       currentIteration: k,
       progressMessage: `${prefix}Generating…`,
     });
-  } else if (u.status === "COMPLETED") {
+  } else if (e.kind === "completed") {
     gen.updateJob(jobId, {
       currentIteration: k,
       progressMessage: `${prefix}Downloading…`,
@@ -498,7 +461,11 @@ function reportJobQueue(jobId: string, k: number, total: number, u: QueueStatus)
   }
 }
 
-async function uploadRefs(refs: RefImage[], signal: AbortSignal): Promise<UploadedRef[]> {
+async function uploadRefs(
+  provider: { uploadFile: (file: File, signal: AbortSignal) => Promise<string> },
+  refs: RefImage[],
+  signal: AbortSignal,
+): Promise<UploadedRef[]> {
   const out: UploadedRef[] = [];
   for (const r of refs) {
     if (signal.aborted) throw new DOMException("aborted", "AbortError");
@@ -506,7 +473,7 @@ async function uploadRefs(refs: RefImage[], signal: AbortSignal): Promise<Upload
     const name = basename(r.path);
     const type = blob.type || guessContentType(name);
     const file = new File([blob], name, { type });
-    const url = await fal.storage.upload(file);
+    const url = await provider.uploadFile(file, signal);
     out.push({ ref: r, url });
   }
   return out;
@@ -671,7 +638,7 @@ function buildElements(
 // ---------- Download + sidecar ----------
 
 type DownloadCtx = {
-  result: unknown;
+  out: ProviderOutput;
   node: ModelNode;
   sequencePrompt: string;
   shotPrompt: string;
@@ -686,54 +653,46 @@ type DownloadCtx = {
 };
 
 async function downloadAndWrite(ctx: DownloadCtx): Promise<string[]> {
-  const r = ctx.result as Record<string, unknown>;
   const written: string[] = [];
   const ts = tsNow();
+  const files = ctx.out.files;
 
-  const video = r["video"] as { url?: string } | undefined;
-  if (video && typeof video.url === "string") {
-    const ext = extFromUrl(video.url) ?? "mp4";
+  const firstVideo = files.find((f) => f.isVideo);
+  if (firstVideo) {
+    const ext = extFromUrl(firstVideo.url) ?? "mp4";
     const filename = `${ctx.targetVersion}_${ts}_001.${ext}`;
     const target = joinPath(ctx.versionDir, filename);
-    await cmd.download_to_path(video.url, target);
+    await cmd.download_to_path(firstVideo.url, target);
     const thumbPath = target.replace(/\.[^.]+$/, ".thumb.png");
     if (ctx.ffmpegPath) {
       await cmd.video_thumbnail_extract(target, thumbPath, ctx.ffmpegPath).catch(() => false);
     }
-    const meta = buildMetadataRecord(ctx, video, ctx.iterationBase);
+    const meta = buildMetadataRecord(ctx, ctx.iterationBase);
     await cmd.image_metadata_write(target, meta as unknown as ImageMetadata);
     written.push(target);
     return written;
   }
 
-  const imagesField = r["images"];
-  const single = r["image"] as { url?: string } | undefined;
-  const images: { url?: string }[] = Array.isArray(imagesField)
-    ? (imagesField as { url?: string }[])
-    : single && typeof single.url === "string"
-    ? [single]
-    : [];
-
-  for (let i = 0; i < images.length; i++) {
-    const img = images[i];
-    if (!img?.url) continue;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (!f.url) continue;
     const declaredExt = String(ctx.settings["output_format"] ?? "").toLowerCase();
-    const ext = declaredExt || extFromUrl(img.url) || "png";
+    const ext = declaredExt || extFromUrl(f.url) || "png";
     const idx = i + 1;
     const filename = `${ctx.targetVersion}_${ts}_${String(idx).padStart(3, "0")}.${ext}`;
     const target = joinPath(ctx.versionDir, filename);
-    await cmd.download_to_path(img.url, target);
+    await cmd.download_to_path(f.url, target);
     const iterIdx = ctx.expandToIterations
       ? Math.min(ctx.iterationBase + i, ctx.iterationTotal)
       : ctx.iterationBase;
-    const meta = buildMetadataRecord(ctx, img, iterIdx);
+    const meta = buildMetadataRecord(ctx, iterIdx);
     await cmd.image_metadata_write(target, meta as unknown as ImageMetadata);
     written.push(target);
   }
   return written;
 }
 
-function buildMetadataRecord(ctx: DownloadCtx, falResponse: unknown, iterationIndex: number) {
+function buildMetadataRecord(ctx: DownloadCtx, iterationIndex: number) {
   const cleaned: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(ctx.settings)) {
     if (k === "seed" && v === -1) continue;
@@ -760,7 +719,7 @@ function buildMetadataRecord(ctx: DownloadCtx, falResponse: unknown, iterationIn
     iterationIndex,
     iterationTotal: ctx.iterationTotal > 1 ? ctx.iterationTotal : undefined,
     timestamp: new Date().toISOString(),
-    falResponse,
+    providerResponse: ctx.out.raw,
   };
 }
 

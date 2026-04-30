@@ -1,0 +1,29 @@
+{
+  "provider": "replicate",
+  "family": "FLUX (Replicate)",
+  "category": "Replicate/Image Generation",
+  "nodes": [
+    {
+      "id": "replicate_flux_schnell_txt2img",
+      "name": "FLUX.1 [schnell] (Replicate)",
+      "endpoint": "black-forest-labs/flux-schnell",
+      "batch_field": "num_outputs",
+      "inputs": [
+        { "name": "prompt", "data_type": "STRING", "api_field": "prompt", "required": true }
+      ],
+      "outputs": [
+        { "name": "images", "data_type": "IMAGE", "api_field": "images" }
+      ],
+      "parameters": [
+        { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "1:1",
+          "options": ["1:1", "16:9", "21:9", "3:2", "2:3", "4:5", "5:4", "3:4", "4:3", "9:16", "9:21"] },
+        { "name": "num_outputs", "label": "Num Images", "type": "int", "api_field": "num_outputs", "default": 1, "min": 1, "max": 4 },
+        { "name": "num_inference_steps", "label": "Steps", "type": "int", "api_field": "num_inference_steps", "default": 4, "min": 1, "max": 4 },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["webp", "jpg", "png"] },
+        { "name": "output_quality", "label": "Quality", "type": "int", "api_field": "output_quality", "default": 90, "min": 0, "max": 100 },
+        { "name": "disable_safety_checker", "label": "Disable Safety", "type": "bool", "api_field": "disable_safety_checker", "default": false },
+        { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
+      ]
+    }
+  ]
+}

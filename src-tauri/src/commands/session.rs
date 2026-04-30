@@ -3,8 +3,10 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use serde::Serialize;
 
-use crate::domain::{GalleryColumn, GalleryImage, PromptEntry, SequenceSidecar, ShotSidecar};
+use crate::commands::config::read_json_or_default;
+use crate::domain::{Config, GalleryColumn, GalleryImage, PromptEntry, SequenceSidecar, ShotSidecar};
 use crate::error::{AppError, AppResult};
+use crate::paths;
 
 const SEQUENCE_SIDECAR: &str = "sequence.json";
 const SHOT_SIDECAR: &str = "shot.json";
@@ -72,6 +74,22 @@ fn ensure_dir(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Resolve which SRC dir applies for a given shot. Toggle lives in Config.
+/// "shot" (default) → `<shot>/SRC`. "sequence" → `<shot>/../SRC`.
+fn src_dir_for(shot_path: &Path) -> AppResult<PathBuf> {
+    let cfg: Config = read_json_or_default(&paths::config_path()?)?;
+    let dir = if cfg.src_scope == "sequence" {
+        shot_path
+            .parent()
+            .ok_or_else(|| AppError::Msg("no sequence parent".into()))?
+            .join(SRC_DIR)
+    } else {
+        shot_path.join(SRC_DIR)
+    };
+    ensure_dir(&dir)?;
+    Ok(dir)
+}
+
 fn list_dirs(root: &Path) -> AppResult<Vec<PathBuf>> {
     if !root.is_dir() {
         return Ok(vec![]);
@@ -117,6 +135,9 @@ pub fn sequence_open(sequence_path: String) -> AppResult<SequenceOpenResult> {
     if !root.is_dir() {
         return Err(AppError::Msg(format!("not a directory: {sequence_path}")));
     }
+    // Always ensure a sequence-level SRC exists. Empty when toggle is "shot" —
+    // harmless, and means flipping to "sequence" later self-heals.
+    ensure_dir(&root.join(SRC_DIR))?;
     let sidecar: SequenceSidecar = read_sidecar(&root.join(SEQUENCE_SIDECAR))?;
     let dirs = list_dirs(&root)?;
     let shots = dirs
@@ -131,6 +152,7 @@ pub fn sequence_open(sequence_path: String) -> AppResult<SequenceOpenResult> {
 pub fn sequence_create(project_path: String, name: String) -> AppResult<String> {
     let target = PathBuf::from(&project_path).join(sanitize(&name));
     ensure_dir(&target)?;
+    ensure_dir(&target.join(SRC_DIR))?;
     let sidecar_path = target.join(SEQUENCE_SIDECAR);
     if !sidecar_path.exists() {
         write_sidecar_atomic(
@@ -157,7 +179,7 @@ pub fn shot_open(shot_path: String) -> AppResult<ShotOpenResult> {
     if !root.is_dir() {
         return Err(AppError::Msg(format!("not a directory: {shot_path}")));
     }
-    ensure_dir(&root.join(SRC_DIR))?;
+    src_dir_for(&root)?;
     let sidecar: ShotSidecar = read_sidecar(&root.join(SHOT_SIDECAR))?;
     let columns = scan_shot_columns(&root)?;
     Ok(ShotOpenResult { columns, sidecar })
@@ -173,7 +195,7 @@ pub fn shot_rescan(shot_path: String) -> AppResult<Vec<GalleryColumn>> {
 pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
     let target = PathBuf::from(&sequence_path).join(sanitize(&name));
     ensure_dir(&target)?;
-    ensure_dir(&target.join(SRC_DIR))?;
+    src_dir_for(&target)?;
     let sidecar_path = target.join(SHOT_SIDECAR);
     if !sidecar_path.exists() {
         write_sidecar_atomic(
@@ -188,6 +210,9 @@ pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
 }
 
 fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
+    let cfg: Config = read_json_or_default(&paths::config_path()?)?;
+    let src_at_sequence = cfg.src_scope == "sequence";
+
     let mut cols: Vec<GalleryColumn> = Vec::new();
     for entry in std::fs::read_dir(root)? {
         let entry = entry?;
@@ -200,6 +225,10 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
             None => continue,
         };
         let is_src = name == SRC_DIR;
+        // When SRC lives at sequence scope, ignore the shot's local SRC dir.
+        if is_src && src_at_sequence {
+            continue;
+        }
         if !is_src && !is_version_name(&name) {
             continue;
         }
@@ -213,6 +242,24 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
             model_name: None,
         });
     }
+
+    if src_at_sequence {
+        if let Some(seq) = root.parent() {
+            let seq_src = seq.join(SRC_DIR);
+            if seq_src.is_dir() {
+                let images = scan_directory_images(&seq_src)?;
+                cols.push(GalleryColumn {
+                    id: SRC_DIR.to_string(),
+                    version: SRC_DIR.to_string(),
+                    is_src: true,
+                    images,
+                    timestamp: None,
+                    model_name: None,
+                });
+            }
+        }
+    }
+
     cols.sort_by(|a, b| match (a.is_src, b.is_src) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
@@ -294,13 +341,20 @@ pub fn version_create_next(shot_path: String) -> AppResult<String> {
 }
 
 #[tauri::command]
+pub fn reveal_in_explorer(app: tauri::AppHandle, path: String) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .reveal_item_in_dir(path)
+        .map_err(|e| AppError::Msg(e.to_string()))
+}
+
+#[tauri::command]
 pub fn ref_copy_to_src(shot_path: String, source_path: String) -> AppResult<String> {
     let src = PathBuf::from(&source_path);
     if !src.is_file() {
         return Err(AppError::Msg(format!("not a file: {source_path}")));
     }
-    let src_dir = PathBuf::from(&shot_path).join(SRC_DIR);
-    ensure_dir(&src_dir)?;
+    let src_dir = src_dir_for(&PathBuf::from(&shot_path))?;
     let filename = src
         .file_name()
         .ok_or_else(|| AppError::Msg("no filename".into()))?;

@@ -12,6 +12,9 @@ struct ModelFile {
     family: String,
     #[serde(default)]
     category: String,
+    /// Optional top-level provider; nodes inherit unless they override.
+    #[serde(default)]
+    provider: Option<String>,
     #[serde(default)]
     nodes: Vec<RawNode>,
 }
@@ -34,6 +37,8 @@ struct RawNode {
     kind: Option<String>,
     #[serde(default)]
     batch_field: Option<String>,
+    #[serde(default)]
+    provider: Option<String>,
 }
 
 fn infer_kind(outputs: &[ModelOutput], declared: &Option<String>) -> String {
@@ -75,25 +80,54 @@ fn annotate_roles(roles: Option<Vec<RefRoleSpec>>) -> Option<Vec<RefRoleSpec>> {
     })
 }
 
+/// Walk `dir` and return JSON files at the top level plus one level deep.
+/// Subfolders are organisational (typically `<provider>/`); deeper nesting is
+/// ignored to keep the layout legible.
+fn collect_model_files(dir: &std::path::Path) -> AppResult<Vec<std::path::PathBuf>> {
+    let mut out: Vec<std::path::PathBuf> = Vec::new();
+    let mut top: Vec<_> = std::fs::read_dir(dir)?.filter_map(|e| e.ok()).collect();
+    top.sort_by_key(|e| e.file_name());
+    for entry in top {
+        let path = entry.path();
+        let name = entry.file_name();
+        if name.to_string_lossy().starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            let mut nested: Vec<_> = match std::fs::read_dir(&path) {
+                Ok(rd) => rd.filter_map(|e| e.ok()).collect(),
+                Err(_) => continue,
+            };
+            nested.sort_by_key(|e| e.file_name());
+            for ne in nested {
+                let np = ne.path();
+                if !np.is_file() {
+                    continue;
+                }
+                if np.extension().and_then(|x| x.to_str()).map(|x| x.eq_ignore_ascii_case("json")).unwrap_or(false) {
+                    out.push(np);
+                }
+            }
+        } else if path
+            .extension()
+            .and_then(|x| x.to_str())
+            .map(|x| x.eq_ignore_ascii_case("json"))
+            .unwrap_or(false)
+        {
+            out.push(path);
+        }
+    }
+    Ok(out)
+}
+
 #[tauri::command]
 pub fn models_load() -> AppResult<Vec<ModelEntry>> {
     let dir = paths::models_dir()?;
     let mut entries = Vec::new();
 
-    let mut files: Vec<_> = std::fs::read_dir(&dir)?
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .and_then(|x| x.to_str())
-                .map(|x| x.eq_ignore_ascii_case("json"))
-                .unwrap_or(false)
-        })
-        .collect();
-    files.sort_by_key(|e| e.file_name());
+    let files = collect_model_files(&dir)?;
 
-    for entry in files {
-        let path = entry.path();
+    for path in files {
         let text = match std::fs::read_to_string(&path) {
             Ok(t) => t,
             Err(_) => continue,
@@ -105,6 +139,7 @@ pub fn models_load() -> AppResult<Vec<ModelEntry>> {
         for raw in file.nodes {
             let kind = infer_kind(&raw.outputs, &raw.kind);
             let batch_field = infer_batch_field(&raw.parameters, &raw.batch_field);
+            let provider = raw.provider.clone().or_else(|| file.provider.clone());
             let node = ModelNode {
                 id: raw.id,
                 name: raw.name,
@@ -115,6 +150,7 @@ pub fn models_load() -> AppResult<Vec<ModelEntry>> {
                 ref_roles: annotate_roles(raw.ref_roles),
                 parameters: raw.parameters,
                 batch_field,
+                provider,
             };
             entries.push(ModelEntry {
                 family: file.family.clone(),

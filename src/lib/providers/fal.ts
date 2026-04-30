@@ -1,0 +1,91 @@
+import { fal } from "@fal-ai/client";
+import type { QueueStatus } from "@fal-ai/client";
+
+import { cmd } from "../tauri";
+import {
+  isVideoUrl,
+  type Provider,
+  type ProviderFile,
+  type ProviderOutput,
+  type ProviderProgress,
+} from "./provider";
+
+export class FalProvider implements Provider {
+  async prepare(): Promise<void> {
+    const key = await cmd.provider_key_get("fal").catch(() => "");
+    if (!key) throw new Error("FAL_KEY not configured — open Settings.");
+    fal.config({ credentials: key });
+  }
+
+  async uploadFile(file: File, _signal: AbortSignal): Promise<string> {
+    return fal.storage.upload(file);
+  }
+
+  async run(
+    endpoint: string,
+    input: Record<string, unknown>,
+    signal: AbortSignal,
+    onProgress: (e: ProviderProgress) => void,
+  ): Promise<ProviderOutput> {
+    if (signal.aborted) throw new DOMException("aborted", "AbortError");
+
+    const enqueued = await fal.queue.submit(endpoint, { input, abortSignal: signal });
+    const requestId = enqueued.request_id;
+
+    emitProgress(enqueued, onProgress);
+
+    const onAbort = () => {
+      void fal.queue.cancel(endpoint, { requestId }).catch(() => {});
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+
+    try {
+      await fal.queue.subscribeToStatus(endpoint, {
+        requestId,
+        mode: "polling",
+        pollInterval: 1000,
+        onQueueUpdate: (u) => emitProgress(u, onProgress),
+        abortSignal: signal,
+      });
+      const res = await fal.queue.result(endpoint, { requestId, abortSignal: signal });
+      return unwrap(res.data);
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+    }
+  }
+}
+
+function emitProgress(u: QueueStatus, onProgress: (e: ProviderProgress) => void): void {
+  if (u.status === "IN_QUEUE") {
+    onProgress({ kind: "queued", position: u.queue_position });
+  } else if (u.status === "IN_PROGRESS") {
+    onProgress({ kind: "running" });
+  } else if (u.status === "COMPLETED") {
+    onProgress({ kind: "completed" });
+  }
+}
+
+function unwrap(result: unknown): ProviderOutput {
+  const r = (result ?? {}) as Record<string, unknown>;
+  const files: ProviderFile[] = [];
+
+  const video = r["video"] as { url?: string } | undefined;
+  if (video && typeof video.url === "string") {
+    files.push({ url: video.url, isVideo: true });
+    return { files, raw: result };
+  }
+
+  const imagesField = r["images"];
+  const single = r["image"] as { url?: string } | undefined;
+  const images: { url?: string }[] = Array.isArray(imagesField)
+    ? (imagesField as { url?: string }[])
+    : single && typeof single.url === "string"
+    ? [single]
+    : [];
+
+  for (const img of images) {
+    if (!img?.url) continue;
+    files.push({ url: img.url, isVideo: isVideoUrl(img.url) });
+  }
+  return { files, raw: result };
+}

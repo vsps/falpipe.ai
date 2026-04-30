@@ -89,16 +89,15 @@ export async function computeTraceSet(imagePath: string): Promise<Set<string>> {
   return visited;
 }
 
-/** Add a gallery image to the current refs: copy to <shot>/SRC/ then add (idempotent). */
+/** Add a gallery image to the current refs: copy to SRC/ (per current scope) then add (idempotent). */
 export async function addImageToRefs(imagePath: string): Promise<string> {
   const { shotPath } = useSessionStore.getState();
   if (!shotPath) throw new Error("no shot open");
-  // If the image is already inside SRC/, just add by path.
-  const normalizedShot = shotPath.replaceAll("\\", "/");
-  const src = `${normalizedShot}/SRC/`;
+  // Skip the copy if the image already lives in any SRC/ folder under the project.
   const normalizedImg = imagePath.replaceAll("\\", "/");
+  const alreadyInSrc = normalizedImg.includes("/SRC/");
   let finalPath = imagePath;
-  if (!normalizedImg.startsWith(src)) {
+  if (!alreadyInSrc) {
     finalPath = await cmd.ref_copy_to_src(shotPath, imagePath);
   }
   useGenerationStore.getState().addRefs([finalPath]);
@@ -123,6 +122,7 @@ export type ImageAction =
   | "copy_prompt"
   | "trace"
   | "refresh"
+  | "open_location"
   | "delete";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "m4v", "avi"]);
@@ -218,6 +218,13 @@ export async function performImageAction(action: ImageAction, path: string): Pro
     case "refresh":
       try {
         await session.rescanShot();
+      } catch (e) {
+        await showMessage(String(e), { kind: "error" });
+      }
+      return;
+    case "open_location":
+      try {
+        await cmd.reveal_in_explorer(path);
       } catch (e) {
         await showMessage(String(e), { kind: "error" });
       }

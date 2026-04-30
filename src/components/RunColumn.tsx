@@ -1,39 +1,11 @@
-import { Icon } from "../lib/icon";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { cancelAllGenerations, enqueueGeneration } from "../lib/generate";
 import { showMessage } from "../lib/dialog";
 import { basename } from "../lib/paths";
-import playSvg from "../icons/play.svg?raw";
-import playPlusSvg from "../icons/play-plus.svg?raw";
-
-// Inject width/height so raw <svg> scales with the button instead of defaulting
-// to the UA's 300×150. Runs once per raw import — module-scope memo.
-const sizedCache = new Map<string, Record<number, string>>();
-function sized(raw: string, size: number): string {
-  let bySize = sizedCache.get(raw);
-  if (!bySize) {
-    bySize = {};
-    sizedCache.set(raw, bySize);
-  }
-  if (!bySize[size]) {
-    bySize[size] = raw.replace(/<svg\s/, `<svg width="${size}" height="${size}" `);
-  }
-  return bySize[size];
-}
-
-function SvgIcon({ raw, size }: { raw: string; size: number }) {
-  return (
-    <span
-      className="inline-block select-none"
-      style={{ width: size, height: size, lineHeight: 0 }}
-      dangerouslySetInnerHTML={{ __html: sized(raw, size) }}
-    />
-  );
-}
 
 export function RunColumn() {
-  const { iterations, setIterations, currentModel, sequencePrompt, shotPrompts, jobs } =
+  const { iterations, setIterations, currentModel, sequencePrompt, shotPrompts, jobs, resetGenerationForm } =
     useGenerationStore();
   const { shotPath, targetVersion, createNextVersion } = useSessionStore();
 
@@ -43,7 +15,6 @@ export function RunColumn() {
   const queueCount = activeJobs.length;
 
   const hasPrompt = (sequencePrompt + shotPrompts.join("")).trim().length > 0;
-  // Submit is allowed even while jobs are in flight — extra clicks just enqueue.
   const canRun = !!currentModel && !!shotPath && targetVersion !== "SRC" && hasPrompt;
 
   const disabledReason = !currentModel
@@ -56,8 +27,6 @@ export function RunColumn() {
     ? "SRC is not a valid target"
     : "";
 
-  // "Submit +version": roll a new version folder (which becomes the target)
-  // and enqueue a generation into it in one click.
   async function runIntoNewVersion() {
     try {
       await createNextVersion();
@@ -75,11 +44,20 @@ export function RunColumn() {
           .map((j) => `${j.modelName} · ${basename(j.shotPath)}/${j.targetVersion} · ${j.progressMessage}`)
           .join("\n");
 
-  const ICON_SIZE = 54;
+  const btn = "bg-bg text-accent font-mono text-xs px-3 py-2 hover:opacity-80 w-full text-center";
+  const btnDisabled = "bg-bg text-accent font-mono text-xs px-3 py-2 opacity-40 cursor-not-allowed w-full text-center";
 
   return (
-    <div className="bg-surface p-prompt-column text-text flex flex-col items-center justify-center gap-prompt-column-gap shrink-0 w-[90px]">
-      <span className="text-xs font-semibold">ITERATIONS</span>
+    <div className="bg-surface p-prompt-column text-text flex flex-col items-center gap-prompt-column-gap shrink-0 w-[110px]">
+      <button
+        onClick={resetGenerationForm}
+        className={`${btn} mb-1`}
+        title="Reset prompts, settings, refs, iterations"
+      >
+        [RESET]
+      </button>
+
+      <span className="text-xs font-semibold mt-2">ITERATIONS</span>
       <input
         type="number"
         min={1}
@@ -87,15 +65,16 @@ export function RunColumn() {
         onChange={(e) => setIterations(parseInt(e.currentTarget.value, 10))}
         className="w-16 text-center bg-bg text-text py-[2px]"
       />
+
       <button
         title={disabledReason || "Submit"}
         disabled={!canRun}
         onClick={() => {
           void enqueueGeneration();
         }}
-        className={canRun ? "hover:opacity-80 text-accent" : "opacity-40 cursor-not-allowed text-accent"}
+        className={canRun ? btn : btnDisabled}
       >
-        <SvgIcon raw={playSvg} size={ICON_SIZE} />
+        [SUBMIT]
       </button>
       <button
         title={disabledReason || "Submit + new version"}
@@ -103,10 +82,11 @@ export function RunColumn() {
         onClick={() => {
           void runIntoNewVersion();
         }}
-        className={canRun ? "hover:opacity-80 text-accent" : "opacity-40 cursor-not-allowed text-accent"}
+        className={canRun ? btn : btnDisabled}
       >
-        <SvgIcon raw={playPlusSvg} size={ICON_SIZE} />
+        [SUBMIT+]
       </button>
+
       {queueCount > 0 && (
         <span
           className="text-xs font-mono bg-bg text-text px-1 py-[1px] cursor-help"
@@ -115,13 +95,14 @@ export function RunColumn() {
           Q: {queueCount}
         </span>
       )}
+
       <button
         title={queueCount > 0 ? `Cancel all (${queueCount})` : "Nothing to cancel"}
         disabled={queueCount === 0}
         onClick={cancelAllGenerations}
-        className={queueCount > 0 ? "hover:opacity-80" : "opacity-40 cursor-not-allowed"}
+        className={queueCount > 0 ? btn : btnDisabled}
       >
-        <Icon name="cancel" size={60} />
+        [CANCEL]
       </button>
     </div>
   );

@@ -33,6 +33,8 @@ type Actions = {
   assignRole: (path: string, role: RoleAssignment | null) => void;
   reorderRefs: (fromIdx: number, toIdx: number) => void;
 
+  resetGenerationForm: () => void;
+
   addJob: (job: Job) => void;
   updateJob: (id: string, patch: Partial<Job>) => void;
   removeJob: (id: string) => void;
@@ -191,6 +193,16 @@ export const useGenerationStore = create<State & Actions>((set) => ({
       });
       return { refImages: ensureFrontals(next) };
     });
+  },
+
+  resetGenerationForm() {
+    set((s) => ({
+      sequencePrompt: "",
+      shotPrompts: [""],
+      settings: s.currentModel ? defaultsFor(s.currentModel.parameters) : {},
+      refImages: [],
+      iterations: 1,
+    }));
   },
 
   addJob(job) {

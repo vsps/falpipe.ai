@@ -21,6 +21,10 @@ export const cmd = {
 
   fal_key_get: (): Promise<string> => rawInvoke("fal_key_get"),
   fal_key_set: (key: string): Promise<void> => rawInvoke("fal_key_set", { key }),
+  provider_key_get: (provider: string): Promise<string> =>
+    rawInvoke("provider_key_get", { provider }),
+  provider_key_set: (provider: string, key: string): Promise<void> =>
+    rawInvoke("provider_key_set", { provider, key }),
 
   // Models
   models_load: (): Promise<ModelEntry[]> => rawInvoke("models_load"),
@@ -49,6 +53,9 @@ export const cmd = {
 
   ref_copy_to_src: (shotPath: string, sourcePath: string): Promise<string> =>
     rawInvoke("ref_copy_to_src", { shotPath, sourcePath }),
+
+  reveal_in_explorer: (path: string): Promise<void> =>
+    rawInvoke("reveal_in_explorer", { path }),
 
   image_metadata_read: (imagePath: string): Promise<ImageMetadata | null> =>
     rawInvoke("image_metadata_read", { imagePath }),

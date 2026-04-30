@@ -21,6 +21,7 @@ const DEFAULT_ITEMS: AvailableAction[] = [
   "trace",
   "zoom",
   "refresh",
+  "open_location",
   "delete",
 ];
 
@@ -33,6 +34,7 @@ const LABELS: Record<AvailableAction, string> = {
   trace: "Trace origins",
   zoom: "Zoom",
   refresh: "Refresh",
+  open_location: "Open location",
   delete: "Delete",
 };
 

@@ -2,7 +2,7 @@ use crate::domain::{AppState, Config};
 use crate::error::AppResult;
 use crate::paths;
 
-fn read_json_or_default<T: Default + serde::de::DeserializeOwned>(path: &std::path::Path) -> AppResult<T> {
+pub(crate) fn read_json_or_default<T: Default + serde::de::DeserializeOwned>(path: &std::path::Path) -> AppResult<T> {
     if !path.exists() {
         return Ok(T::default());
     }
@@ -48,33 +48,79 @@ pub fn app_state_save(state: AppState) -> AppResult<()> {
     write_json_atomic(&paths::app_state_path()?, &state)
 }
 
-// ----- .env (FAL_KEY) -----
+// ----- .env (provider keys) -----
 
-const KEY_NAME: &str = "FAL_KEY";
+/// Map a provider name to its env-var key. Unknown providers fall back to
+/// `<UPPER>_API_KEY` so callers don't have to teach this file every provider.
+fn env_var_for(provider: &str) -> String {
+    match provider {
+        "fal" => "FAL_KEY".to_string(),
+        "replicate" => "REPLICATE_API_TOKEN".to_string(),
+        other => format!("{}_API_KEY", other.to_uppercase()),
+    }
+}
 
-#[tauri::command]
-pub fn fal_key_get() -> AppResult<String> {
+fn read_env_var(name: &str) -> AppResult<String> {
     let path = paths::env_path()?;
     if !path.exists() {
         return Ok(String::new());
     }
     let text = std::fs::read_to_string(path)?;
+    let prefix = format!("{name}=");
     for line in text.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        if let Some(rest) = line.strip_prefix(&format!("{KEY_NAME}=")) {
+        if let Some(rest) = line.strip_prefix(&prefix) {
             return Ok(rest.trim_matches('"').to_string());
         }
     }
     Ok(String::new())
 }
 
-#[tauri::command]
-pub fn fal_key_set(key: String) -> AppResult<()> {
+fn write_env_var(name: &str, value: &str) -> AppResult<()> {
     let path = paths::env_path()?;
-    let content = format!("{KEY_NAME}={}\n", key);
+    let prefix = format!("{name}=");
+    let mut lines: Vec<String> = if path.exists() {
+        std::fs::read_to_string(&path)?
+            .lines()
+            .filter(|l| !l.trim_start().starts_with(&prefix))
+            .map(String::from)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    if !value.is_empty() {
+        lines.push(format!("{name}={value}"));
+    }
+    let mut content = lines.join("\n");
+    if !content.is_empty() {
+        content.push('\n');
+    }
     std::fs::write(path, content)?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn provider_key_get(provider: String) -> AppResult<String> {
+    let name = env_var_for(&provider);
+    read_env_var(&name)
+}
+
+#[tauri::command]
+pub fn provider_key_set(provider: String, key: String) -> AppResult<()> {
+    let name = env_var_for(&provider);
+    write_env_var(&name, &key)
+}
+
+// Legacy wrappers — kept so existing TS callers don't churn.
+#[tauri::command]
+pub fn fal_key_get() -> AppResult<String> {
+    read_env_var("FAL_KEY")
+}
+
+#[tauri::command]
+pub fn fal_key_set(key: String) -> AppResult<()> {
+    write_env_var("FAL_KEY", &key)
 }

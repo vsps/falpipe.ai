@@ -149,6 +149,13 @@ export function RefImagesColumn() {
           <span>REF_IMAGES</span>
           <span className="flex-1" />
           <span className="text-xs opacity-60 font-mono">{refImages.length}</span>
+          <button
+            type="button"
+            onClick={removeAllRefs}
+            disabled={refImages.length === 0}
+            className="ml-2 px-1 text-xs font-mono text-red-500 hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+            title="Clear all references"
+          >[clear]</button>
         </div>
         <div className="flex flex-wrap gap-prompt-column-gap content-start overflow-y-auto thin-scroll bg-inset p-prompt-panel flex-1 min-h-0">
           {refImages.map((r, idx) => (
@@ -164,7 +171,7 @@ export function RefImagesColumn() {
               onHandlePointerDown={(pointerId, handleEl) => beginHandleDrag(idx, pointerId, handleEl)}
             />
           ))}
-          <RefAddTile onAdd={onAdd} onRemoveAll={removeAllRefs} canRemove={refImages.length > 0} />
+          <RefAddTile onAdd={onAdd} />
         </div>
       </div>
 
@@ -262,25 +269,10 @@ function RefThumb({
   );
 }
 
-function RefAddTile({
-  onAdd,
-  onRemoveAll,
-  canRemove,
-}: {
-  onAdd: () => void;
-  onRemoveAll: () => void;
-  canRemove: boolean;
-}) {
+function RefAddTile({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="bg-surface w-[109px] h-[109px] flex items-center justify-center gap-[6px]">
+    <div className="bg-surface w-[109px] h-[109px] flex items-center justify-center">
       <IconBtn name="add_photo_alternate" size={28} title="Add reference images" onClick={onAdd} />
-      <IconBtn
-        name="remove"
-        size={28}
-        title="Remove all references"
-        onClick={onRemoveAll}
-        disabled={!canRemove}
-      />
     </div>
   );
 }

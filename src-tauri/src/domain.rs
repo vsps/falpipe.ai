@@ -50,6 +50,9 @@ pub struct ModelNode {
     pub parameters: Vec<Parameter>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub batch_field: Option<String>,
+    /// "fal" | "replicate". Defaults to "fal" when omitted.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,11 +108,14 @@ pub struct Config {
     pub ffmpeg_path: String,
     #[serde(default = "default_max_concurrent_jobs")]
     pub max_concurrent_jobs: u32,
+    #[serde(default = "default_src_scope")]
+    pub src_scope: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub colors: Option<ColorOverrides>,
 }
 
 fn default_max_concurrent_jobs() -> u32 { 3 }
+fn default_src_scope() -> String { "shot".into() }
 
 impl Default for Config {
     fn default() -> Self {
@@ -123,6 +129,7 @@ impl Default for Config {
             test_image_path: String::new(),
             ffmpeg_path: String::new(),
             max_concurrent_jobs: default_max_concurrent_jobs(),
+            src_scope: default_src_scope(),
             colors: None,
         }
     }

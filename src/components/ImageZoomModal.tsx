@@ -191,6 +191,7 @@ export function ImageZoomModal({
             "copy_settings",
             "trace",
             "refresh",
+            "open_location",
             "delete",
           ]}
         />

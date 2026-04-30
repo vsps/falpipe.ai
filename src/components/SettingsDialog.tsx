@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { cmd } from "../lib/tauri";
 import { pickFile, showMessage } from "../lib/dialog";
 import { applyColors, COLOR_KEYS, DEFAULT_COLORS } from "../lib/colors";
+import { useSessionStore } from "../stores/sessionStore";
 import type { ColorOverrides, Config } from "../lib/types";
 
 type Props = {
@@ -18,14 +19,18 @@ const DEFAULT: Config = {
   testImagePath: "",
   ffmpegPath: "",
   maxConcurrentJobs: 3,
+  srcScope: "shot",
   colors: undefined,
 };
 
 export function SettingsDialog({ onClose }: Props) {
   const [falKey, setFalKey] = useState("");
+  const [replicateKey, setReplicateKey] = useState("");
   const [revealKey, setRevealKey] = useState(false);
+  const [revealReplicate, setRevealReplicate] = useState(false);
   const [config, setConfig] = useState<Config>(DEFAULT);
   const [originalColors, setOriginalColors] = useState<ColorOverrides | undefined>(undefined);
+  const [originalSrcScope, setOriginalSrcScope] = useState<"shot" | "sequence">("shot");
   const [busy, setBusy] = useState(false);
 
   const currentColors = useMemo<Required<ColorOverrides>>(
@@ -35,14 +40,18 @@ export function SettingsDialog({ onClose }: Props) {
 
   useEffect(() => {
     void (async () => {
-      const [k, c] = await Promise.all([
-        cmd.fal_key_get().catch(() => ""),
+      const [k, rk, c] = await Promise.all([
+        cmd.provider_key_get("fal").catch(() => ""),
+        cmd.provider_key_get("replicate").catch(() => ""),
         cmd.config_load().catch(() => null),
       ]);
       setFalKey(k);
+      setReplicateKey(rk);
       if (c) {
-        setConfig(c as Config);
-        setOriginalColors((c as Config).colors);
+        const cfg = c as Config;
+        setConfig(cfg);
+        setOriginalColors(cfg.colors);
+        setOriginalSrcScope(cfg.srcScope ?? "shot");
       }
     })();
   }, []);
@@ -90,9 +99,15 @@ export function SettingsDialog({ onClose }: Props) {
   async function save() {
     setBusy(true);
     try {
-      await cmd.fal_key_set(falKey.trim());
+      await cmd.provider_key_set("fal", falKey.trim());
+      await cmd.provider_key_set("replicate", replicateKey.trim());
       await cmd.config_save(config);
       setOriginalColors(config.colors);
+      const newScope = config.srcScope ?? "shot";
+      if (newScope !== originalSrcScope) {
+        setOriginalSrcScope(newScope);
+        await useSessionStore.getState().rescanShot().catch(() => {});
+      }
       onClose();
     } catch (e) {
       await showMessage(String(e), { kind: "error" });
@@ -131,6 +146,24 @@ export function SettingsDialog({ onClose }: Props) {
             </div>
             <div className="text-xs text-dim mt-1">
               Stored in <code>%APPDATA%/falPipe/.env</code>.
+            </div>
+          </Field>
+
+          <Field label="REPLICATE_API_TOKEN">
+            <div className="flex gap-1">
+              <input
+                type={revealReplicate ? "text" : "password"}
+                value={replicateKey}
+                onChange={(e) => setReplicateKey(e.currentTarget.value)}
+                className="flex-1 bg-bg px-2 py-1 font-mono text-xs"
+                placeholder="r8_…"
+              />
+              <button
+                className="px-2 bg-bg text-xs"
+                onClick={() => setRevealReplicate((v) => !v)}
+              >
+                {revealReplicate ? "hide" : "show"}
+              </button>
             </div>
           </Field>
 
@@ -199,6 +232,34 @@ export function SettingsDialog({ onClose }: Props) {
             />
             <div className="text-xs text-dim mt-1">
               Extra submits beyond this cap wait in a local queue.
+            </div>
+          </Field>
+
+          <Field label="SRC location">
+            <div className="flex flex-col gap-1 text-xs">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="srcScope"
+                  checked={(config.srcScope ?? "shot") === "shot"}
+                  onChange={() => setConfig((c) => ({ ...c, srcScope: "shot" }))}
+                  className="accent-accent"
+                />
+                per shot — <code>&lt;shot&gt;/SRC/</code>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="srcScope"
+                  checked={(config.srcScope ?? "shot") === "sequence"}
+                  onChange={() => setConfig((c) => ({ ...c, srcScope: "sequence" }))}
+                  className="accent-accent"
+                />
+                per sequence — <code>&lt;sequence&gt;/SRC/</code>
+              </label>
+            </div>
+            <div className="text-xs text-dim mt-1">
+              Existing files are not moved when you switch. Flip back to see old files.
             </div>
           </Field>
 
