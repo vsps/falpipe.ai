@@ -12,10 +12,12 @@ import { performImageAction } from "../lib/actions";
 import type { RefImage, RoleAssignment } from "../lib/types";
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp"];
+const VIDEO_EXTS = ["mp4", "webm", "mov", "mkv"];
+const MEDIA_EXTS = [...IMAGE_EXTS, ...VIDEO_EXTS];
 
-function isImage(path: string): boolean {
+function isMedia(path: string): boolean {
   const ext = path.toLowerCase().split(".").pop();
-  return !!ext && IMAGE_EXTS.includes(ext);
+  return !!ext && MEDIA_EXTS.includes(ext);
 }
 
 export function RefImagesColumn() {
@@ -37,10 +39,10 @@ export function RefImagesColumn() {
       await showMessage("Open a shot first", { kind: "warning" });
       return;
     }
-    const images = paths.filter(isImage);
-    if (images.length === 0) return;
+    const media = paths.filter(isMedia);
+    if (media.length === 0) return;
     const copied: string[] = [];
-    for (const p of images) {
+    for (const p of media) {
       try {
         const dest = await cmd.ref_copy_to_src(shotPath, p);
         copied.push(dest);
@@ -52,8 +54,8 @@ export function RefImagesColumn() {
   }
 
   async function onAdd() {
-    const paths = await pickFile("Pick reference images", {
-      extensions: IMAGE_EXTS,
+    const paths = await pickFile("Pick reference images or videos", {
+      extensions: MEDIA_EXTS,
       multiple: true,
     });
     if (!paths) return;
@@ -191,6 +193,11 @@ export function RefImagesColumn() {
   );
 }
 
+function isVideoPath(path: string): boolean {
+  const ext = path.toLowerCase().split(".").pop();
+  return !!ext && VIDEO_EXTS.includes(ext);
+}
+
 function RefThumb({
   index,
   ref_,
@@ -211,6 +218,8 @@ function RefThumb({
   onHandlePointerDown: (pointerId: number, handleEl: HTMLElement) => void;
 }) {
   const label = roleLabel(ref_);
+  const isVideo = isVideoPath(ref_.path);
+  const src = fileSrc(ref_.path);
 
   return (
     <div
@@ -218,12 +227,20 @@ function RefThumb({
       className={`relative bg-bg text-text overflow-hidden w-[109px] h-[109px] flex flex-col justify-between p-[3px] group ${
         isDragging ? "opacity-40" : ""
       } ${isDropTarget ? "outline outline-2 outline-accent" : ""}`}
-      style={{
-        backgroundImage: `url("${fileSrc(ref_.path)}")`,
+      style={isVideo ? undefined : {
+        backgroundImage: `url("${src}")`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
+      {isVideo && (
+        <video
+          src={src}
+          preload="metadata"
+          muted
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+        />
+      )}
       {/* Top bar = role label + role-menu trigger (click anywhere on the bar). */}
       <div
         className="relative z-10 flex items-start bg-bg/90 hover:bg-bg px-1 text-xs leading-tight truncate max-w-full cursor-pointer"
