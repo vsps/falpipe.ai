@@ -27,26 +27,6 @@ fn is_version_name(name: &str) -> bool {
         && name[1..].chars().all(|c| c.is_ascii_digit())
 }
 
-fn looks_like_shot(dir: &Path) -> bool {
-    if dir.join(SHOT_SIDECAR).exists() {
-        return true;
-    }
-    if let Ok(mut it) = std::fs::read_dir(dir) {
-        while let Some(Ok(entry)) = it.next() {
-            let p = entry.path();
-            if !p.is_dir() {
-                continue;
-            }
-            if let Some(n) = p.file_name().and_then(|n| n.to_str()) {
-                if n == SRC_DIR || is_version_name(n) {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
-
 fn read_sidecar<T: serde::de::DeserializeOwned + Default>(path: &Path) -> AppResult<T> {
     if !path.exists() {
         return Ok(T::default());
@@ -142,7 +122,12 @@ pub fn sequence_open(sequence_path: String) -> AppResult<SequenceOpenResult> {
     let dirs = list_dirs(&root)?;
     let shots = dirs
         .into_iter()
-        .filter(|p| looks_like_shot(p))
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n != SRC_DIR)
+                .unwrap_or(false)
+        })
         .map(|p| as_str(&p))
         .collect();
     Ok(SequenceOpenResult { shots, sidecar })
