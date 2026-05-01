@@ -94,7 +94,8 @@ export type RoleAssignment =
   | { kind: "source" }
   | { kind: "start" }
   | { kind: "end" }
-  | { kind: "element"; groupName: string; frontal: boolean };
+  | { kind: "element"; groupName: string; frontal: boolean }
+  | { kind: "image"; groupName: string };
 
 export type RefImage = {
   path: string;

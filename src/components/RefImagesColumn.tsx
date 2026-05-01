@@ -302,5 +302,6 @@ function roleLabel(r: RefImage): string {
     case "start": return "start";
     case "end": return "end";
     case "element": return `@Element${a.groupName}${a.frontal ? " ★" : ""}`;
+    case "image": return `@Image${a.groupName}`;
   }
 }

@@ -467,7 +467,9 @@ export function buildArgs(
         unassigned.push(r);
         continue;
       }
-      const key = a.kind === "element" ? `element:${a.groupName}` : a.kind;
+      const key = a.kind === "element" ? `element:${a.groupName}`
+                : a.kind === "image" ? `image:${a.groupName}`
+                : a.kind;
       (bucket[key] ??= []).push(r);
     }
 
@@ -492,6 +494,11 @@ export function buildArgs(
       if (role.role === "element") {
         const elements = buildElements(bucket, role.max);
         if (elements.length > 0) args[role.api_field] = elements;
+        continue;
+      }
+      if (role.role === "image") {
+        const urls = buildImageArray(bucket, role.max);
+        if (urls.length > 0) args[role.api_field] = urls;
         continue;
       }
       const slice = selectForRole(role, bucket, unassigned, sourceConsumed);
@@ -578,6 +585,26 @@ function buildElements(
     });
   }
   return max ? out.slice(0, max) : out;
+}
+
+// Emit a flat URL array for "image" role groups, ordered by numeric group name.
+function buildImageArray(
+  bucket: Record<string, UploadedRef[]>,
+  max?: number,
+): string[] {
+  const keys = Object.keys(bucket)
+    .filter((k) => k.startsWith("image:"))
+    .sort((a, b) => {
+      const na = Number(a.slice(6));
+      const nb = Number(b.slice(6));
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return a.localeCompare(b);
+    });
+  const urls: string[] = [];
+  for (const key of keys) {
+    for (const r of bucket[key]) urls.push(r.url);
+  }
+  return max ? urls.slice(0, max) : urls;
 }
 
 // ---------- Download + sidecar ----------

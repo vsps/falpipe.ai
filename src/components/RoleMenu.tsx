@@ -15,6 +15,7 @@ function rolesSupportedBy(model: ModelNode | null): {
   start: boolean;
   end: boolean;
   element: boolean;
+  image: boolean;
 } {
   const has = (name: string) =>
     !!model?.ref_roles?.some((r) => r.role === name);
@@ -23,6 +24,7 @@ function rolesSupportedBy(model: ModelNode | null): {
     start: has("start"),
     end: has("end"),
     element: has("element"),
+    image: has("image"),
   };
 }
 
@@ -30,10 +32,11 @@ export function RoleMenu({ anchor, ref_, model, onAssign, onClose }: Props) {
   const menuRef = useRef<HTMLDivElement>(null);
   const refImages = useGenerationStore((s) => s.refImages);
   const supported = rolesSupportedBy(model);
-  const anyRole = supported.source || supported.start || supported.end || supported.element;
+  const anyRole = supported.source || supported.start || supported.end || supported.element || supported.image;
 
   const current = ref_.roleAssignment;
   const myElement = current?.kind === "element" ? current : null;
+  const myImage = current?.kind === "image" ? current : null;
 
   // Existing element group numbers in first-seen order — normalized to "1","2",...
   const existingGroups: string[] = [];
@@ -46,6 +49,18 @@ export function RoleMenu({ anchor, ref_, model, onAssign, onClose }: Props) {
   existingGroups.sort((a, b) => Number(a) - Number(b));
   const nextGroup = String(
     existingGroups.length ? Math.max(...existingGroups.map(Number)) + 1 : 1,
+  );
+
+  const existingImageGroups: string[] = [];
+  for (const r of refImages) {
+    if (r.roleAssignment?.kind === "image") {
+      const g = r.roleAssignment.groupName;
+      if (!existingImageGroups.includes(g)) existingImageGroups.push(g);
+    }
+  }
+  existingImageGroups.sort((a, b) => Number(a) - Number(b));
+  const nextImageGroup = String(
+    existingImageGroups.length ? Math.max(...existingImageGroups.map(Number)) + 1 : 1,
   );
 
   useEffect(() => {
@@ -144,6 +159,24 @@ export function RoleMenu({ anchor, ref_, model, onAssign, onClose }: Props) {
               frontal
             </label>
           )}
+        </div>
+      )}
+      {supported.image && (
+        <div className="flex flex-col gap-1 border-t border-dim pt-1 mt-1">
+          <div className="text-xs opacity-60">image</div>
+          {existingImageGroups.map((g) => (
+            <RoleOption
+              key={g}
+              label={`@Image${g}`}
+              active={myImage?.groupName === g}
+              onClick={() => onAssign({ kind: "image", groupName: g })}
+            />
+          ))}
+          <RoleOption
+            label={`+ New image (@Image${nextImageGroup})`}
+            active={false}
+            onClick={() => onAssign({ kind: "image", groupName: nextImageGroup })}
+          />
         </div>
       )}
       <button

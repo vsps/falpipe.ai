@@ -74,7 +74,8 @@
         { "name": "video", "data_type": "VIDEO", "api_field": "video" }
       ],
       "ref_roles": [
-        { "role": "source", "api_field": "video_url", "max": 1 }
+        { "role": "source", "api_field": "video_url", "max": 1, "exclusive": true },
+        { "role": "image", "api_field": "reference_image_urls" }
       ],
       "parameters": [
         { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1080p", "options": ["720p", "1080p"] },
