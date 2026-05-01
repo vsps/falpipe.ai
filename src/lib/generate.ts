@@ -582,7 +582,7 @@ function buildElements(
 
 // ---------- Download + sidecar ----------
 
-const DEFAULT_FILENAME_TEMPLATE = "<date>_<sequence>_<shot>_<model>_<version>";
+const DEFAULT_FILENAME_TEMPLATE = "<date>_<time>_<sequence>_<shot>_<model>_<version>";
 
 type DownloadCtx = {
   out: ProviderOutput;

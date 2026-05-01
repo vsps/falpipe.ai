@@ -9,7 +9,7 @@ type Props = {
   onClose: () => void;
 };
 
-const FILENAME_TEMPLATE_DEFAULT = "<date>_<sequence>_<shot>_<model>_<version>";
+const FILENAME_TEMPLATE_DEFAULT = "<date>_<time>_<sequence>_<shot>_<model>_<version>";
 
 const DEFAULT: Config = {
   windowBounds: { width: 1600, height: 1000 },
@@ -166,9 +166,10 @@ export function SettingsDialog({ onClose }: Props) {
               <input
                 type="text"
                 value={config.ffmpegPath}
-                onChange={(e) =>
-                  setConfig((c) => ({ ...c, ffmpegPath: e.currentTarget.value }))
-                }
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  setConfig((c) => ({ ...c, ffmpegPath: value }));
+                }}
                 className="flex-1 bg-bg px-2 py-1 text-xs font-mono"
                 placeholder="ffmpeg.exe (optional)"
               />
@@ -232,9 +233,10 @@ export function SettingsDialog({ onClose }: Props) {
               <input
                 type="text"
                 value={config.filenameTemplate ?? ""}
-                onChange={(e) =>
-                  setConfig((c) => ({ ...c, filenameTemplate: e.currentTarget.value || undefined }))
-                }
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  setConfig((c) => ({ ...c, filenameTemplate: value || undefined }));
+                }}
                 className="flex-1 bg-bg px-2 py-1 text-xs font-mono"
                 placeholder={FILENAME_TEMPLATE_DEFAULT}
               />
