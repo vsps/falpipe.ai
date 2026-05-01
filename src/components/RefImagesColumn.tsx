@@ -219,7 +219,7 @@ function RefThumb({
         isDragging ? "opacity-40" : ""
       } ${isDropTarget ? "outline outline-2 outline-accent" : ""}`}
       style={{
-        backgroundImage: `url(${fileSrc(ref_.path)})`,
+        backgroundImage: `url("${fileSrc(ref_.path)}")`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
