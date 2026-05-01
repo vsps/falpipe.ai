@@ -214,7 +214,8 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
         if is_src && src_at_sequence {
             continue;
         }
-        if !is_src && !is_version_name(&name) {
+        // Skip hidden and system directories.
+        if name.starts_with('.') || name.starts_with('$') {
             continue;
         }
         let images = scan_directory_images(&p)?;
