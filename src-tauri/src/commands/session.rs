@@ -4,10 +4,11 @@ use chrono::Utc;
 use serde::Serialize;
 
 use crate::commands::config::read_json_or_default;
-use crate::domain::{Config, GalleryColumn, GalleryImage, PromptEntry, SequenceSidecar, ShotSidecar};
+use crate::domain::{Config, GalleryColumn, GalleryImage, ProjectSidecar, PromptEntry, SequenceSidecar, ShotSidecar};
 use crate::error::{AppError, AppResult};
 use crate::paths;
 
+const PROJECT_SIDECAR: &str = "project.json";
 const SEQUENCE_SIDECAR: &str = "sequence.json";
 const SHOT_SIDECAR: &str = "shot.json";
 const SRC_DIR: &str = "SRC";
@@ -97,6 +98,26 @@ pub fn project_open(project_path: String) -> AppResult<Vec<String>> {
     let root = PathBuf::from(&project_path);
     if !root.is_dir() {
         return Err(AppError::Msg(format!("not a directory: {project_path}")));
+    }
+    // Reject folders that are clearly sequences or shots, not projects.
+    if root.join(SEQUENCE_SIDECAR).exists() || root.join(SHOT_SIDECAR).exists() {
+        return Err(AppError::Msg("NOT A PROJECT FOLDER".into()));
+    }
+    // Auto-create project.json on first open (new project or migration).
+    let sidecar_path = root.join(PROJECT_SIDECAR);
+    if !sidecar_path.exists() {
+        let title = root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("project")
+            .to_string();
+        write_sidecar_atomic(
+            &sidecar_path,
+            &ProjectSidecar {
+                title,
+                created: Utc::now().to_rfc3339(),
+            },
+        )?;
     }
     let dirs = list_dirs(&root)?;
     Ok(dirs.iter().map(|p| as_str(p)).collect())

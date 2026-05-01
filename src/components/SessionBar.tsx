@@ -27,7 +27,13 @@ export function SessionBar({ onOpenSettings }: Props) {
 
   async function pickProject() {
     const p = await pickDirectory("Choose project directory", projectPath ?? undefined);
-    if (p) await setProject(p);
+    if (!p) return;
+    try {
+      await setProject(p);
+    } catch (e) {
+      const msg = String(e);
+      await showMessage(msg.includes("NOT A PROJECT FOLDER") ? "NOT A PROJECT FOLDER" : msg, { kind: "error" });
+    }
   }
 
   async function onCreateSequence(name: string) {

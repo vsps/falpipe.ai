@@ -234,6 +234,13 @@ pub struct ShotSidecar {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectSidecar {
+    pub title: String,
+    pub created: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GalleryImage {
     pub filename: String,
     pub path: String,
