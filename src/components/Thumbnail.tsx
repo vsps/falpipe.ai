@@ -12,7 +12,6 @@ type Props = {
   onZoom: () => void;
   onAddToRefs: () => void;
   onCopySettings: () => void;
-  onCopyPrompt: () => void;
   onTrace: () => void;
   onDelete: () => void;
   traceActive?: boolean;
@@ -26,7 +25,6 @@ export function Thumbnail({
   onZoom,
   onAddToRefs,
   onCopySettings,
-  onCopyPrompt,
   onTrace,
   onDelete,
   traceActive,
@@ -116,7 +114,6 @@ export function Thumbnail({
         <IconBtn name="zoom_in" size={16} title="Zoom" onClick={onZoom} />
         <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
         <IconBtn name="copy_all" size={16} title="Copy all settings" onClick={onCopySettings} />
-        <IconBtn name="content_copy" size={16} title="Copy prompt" onClick={onCopyPrompt} />
         <IconBtn name="conversion_path" size={16} title="Trace" onClick={onTrace} />
       </div>
 

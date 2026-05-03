@@ -11,7 +11,6 @@ type Props = {
   onClose: () => void;
   onAddToRefs: () => void;
   onCopySettings: () => void;
-  onCopyPrompt: () => void;
   onTrace: () => void;
   onDelete: () => void;
 };
@@ -21,7 +20,6 @@ export function ImageZoomModal({
   onClose,
   onAddToRefs,
   onCopySettings,
-  onCopyPrompt,
   onTrace,
   onDelete,
 }: Props) {
@@ -170,7 +168,6 @@ export function ImageZoomModal({
         <div className="flex items-center gap-1">
           <IconBtn name="add_photo_alternate" size={20} title="Add to refs" onClick={onAddToRefs} />
           <IconBtn name="copy_all" size={20} title="Copy all settings" onClick={onCopySettings} />
-          <IconBtn name="content_copy" size={20} title="Copy prompt" onClick={onCopyPrompt} />
           <IconBtn name="conversion_path" size={20} title="Trace" onClick={onTrace} />
           <IconBtn name="delete" size={20} title="Delete" onClick={onDelete} />
           <div className="w-3" />

@@ -58,7 +58,6 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction }: 
               onZoom={() => onImageAction("zoom", img.path)}
               onAddToRefs={() => onImageAction("add_to_refs", img.path)}
               onCopySettings={() => onImageAction("copy_settings", img.path)}
-              onCopyPrompt={() => onImageAction("copy_prompt", img.path)}
               onTrace={() => onImageAction("trace", img.path)}
               onDelete={() => onImageAction("delete", img.path)}
             />

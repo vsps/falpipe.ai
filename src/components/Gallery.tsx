@@ -176,7 +176,6 @@ export function Gallery() {
           onClose={() => setZoomImage(null)}
           onAddToRefs={async () => onImageAction("add_to_refs", zoomImage.path)}
           onCopySettings={async () => onImageAction("copy_settings", zoomImage.path)}
-          onCopyPrompt={async () => onImageAction("copy_prompt", zoomImage.path)}
           onTrace={async () => onImageAction("trace", zoomImage.path)}
           onDelete={async () => onImageAction("delete", zoomImage.path)}
         />
