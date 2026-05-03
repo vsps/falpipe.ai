@@ -81,6 +81,17 @@ export function Thumbnail({
           }}
           className="absolute inset-0 w-full h-full object-cover"
         />
+      ) : image.isVideo ? (
+        <video
+          src={fileSrc(image.path)}
+          preload="metadata"
+          muted
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            if (v.videoWidth > 0) setAspect(v.videoHeight / v.videoWidth);
+          }}
+        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-dim text-text">
           <span className="material-symbols-outlined" style={{ fontSize: 40 }}>
