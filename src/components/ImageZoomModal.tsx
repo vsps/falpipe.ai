@@ -167,7 +167,7 @@ export function ImageZoomModal({
         </div>
         <div className="flex items-center gap-1">
           <IconBtn name="add_photo_alternate" size={20} title="Add to refs" onClick={onAddToRefs} />
-          <IconBtn name="copy_all" size={20} title="Copy all settings" onClick={onCopySettings} />
+          <IconBtn name="copy_all" size={20} title="Reuse settings" onClick={onCopySettings} />
           <IconBtn name="conversion_path" size={20} title="Trace" onClick={onTrace} />
           <IconBtn name="delete" size={20} title="Delete" onClick={onDelete} />
           <div className="w-3" />
