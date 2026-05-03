@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { cancelAllGenerations, enqueueGeneration } from "../lib/generate";
@@ -5,27 +6,42 @@ import { showMessage } from "../lib/dialog";
 import { basename } from "../lib/paths";
 
 export function RunColumn() {
-  const { iterations, setIterations, currentModel, sequencePrompt, shotPrompts, jobs, resetGenerationForm } =
-    useGenerationStore();
+  const {
+    iterations,
+    setIterations,
+    currentModel,
+    sequencePrompt,
+    shotPrompts,
+    jobs,
+    resetGenerationForm,
+  } = useGenerationStore();
   const { shotPath, targetVersion, createNextVersion } = useSessionStore();
 
   const activeJobs = jobs.filter(
-    (j) => j.status !== "done" && j.status !== "failed" && j.status !== "cancelled",
+    (j) =>
+      j.status !== "done" && j.status !== "failed" && j.status !== "cancelled",
   );
-  const queueCount = activeJobs.length;
 
+  const queueCount = activeJobs.length;
+  const columns = useSessionStore((s) => s.columns);
+  const srcVersions = useMemo(() => columns.filter(c => c.isSrc).map(c => c.version), [columns]);
   const hasPrompt = (sequencePrompt + shotPrompts.join("")).trim().length > 0;
-  const canRun = !!currentModel && !!shotPath && targetVersion !== "SRC" && hasPrompt;
+  const canRun =
+    !!currentModel &&
+    !!shotPath &&
+    targetVersion !== null &&
+    !srcVersions.includes(targetVersion ?? "") &&
+    hasPrompt;
 
   const disabledReason = !currentModel
     ? "Pick a model"
     : !shotPath
-    ? "Open a shot"
-    : !hasPrompt
-    ? "Enter a prompt"
-    : targetVersion === "SRC"
-    ? "SRC is not a valid target"
-    : "";
+      ? "Open a shot"
+      : !hasPrompt
+        ? "Enter a prompt"
+        : targetVersion && srcVersions.includes(targetVersion)
+          ? "SRC is not a valid target"
+          : "";
 
   async function runIntoNewVersion() {
     try {
@@ -41,11 +57,16 @@ export function RunColumn() {
     queueCount === 0
       ? "No active jobs"
       : activeJobs
-          .map((j) => `${j.modelName} · ${basename(j.shotPath)}/${j.targetVersion} · ${j.progressMessage}`)
+          .map(
+            (j) =>
+              `${j.modelName} · ${basename(j.shotPath)}/${j.targetVersion} · ${j.progressMessage}`,
+          )
           .join("\n");
 
-  const btn = "bg-bg text-accent font-mono text-xs px-3 py-2 hover:opacity-80 w-full text-center";
-  const btnDisabled = "bg-bg text-accent font-mono text-xs px-3 py-2 opacity-40 cursor-not-allowed w-full text-center";
+  const btn =
+    "bg-bg text-accent font-mono text-xs px-3 py-2 hover:opacity-80 w-full text-center";
+  const btnDisabled =
+    "bg-bg text-accent font-mono text-xs px-3 py-2 opacity-40 cursor-not-allowed w-full text-center";
 
   return (
     <div className="bg-surface p-prompt-column text-text flex flex-col items-center gap-prompt-column-gap shrink-0 w-[110px]">
@@ -97,7 +118,9 @@ export function RunColumn() {
       )}
 
       <button
-        title={queueCount > 0 ? `Cancel all (${queueCount})` : "Nothing to cancel"}
+        title={
+          queueCount > 0 ? `Cancel all (${queueCount})` : "Nothing to cancel"
+        }
         disabled={queueCount === 0}
         onClick={cancelAllGenerations}
         className={queueCount > 0 ? btn : btnDisabled}

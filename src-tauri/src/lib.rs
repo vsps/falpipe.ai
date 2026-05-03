@@ -29,6 +29,7 @@ pub fn run() {
             commands::session::shot_rescan,
             commands::session::version_create_next,
             commands::session::ref_copy_to_src,
+            commands::session::ref_copy_to_seq_src,
             commands::session::reveal_in_explorer,
             commands::session::sequence_prompt_append,
             commands::session::shot_prompt_append,

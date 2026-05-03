@@ -14,6 +14,7 @@ type Props = {
 
 const DEFAULT_ITEMS: AvailableAction[] = [
   "add_to_refs",
+  "copy_to_seq_src",
   "copy_path",
   "copy_image",
   "copy_prompt",
@@ -27,6 +28,7 @@ const DEFAULT_ITEMS: AvailableAction[] = [
 
 const LABELS: Record<AvailableAction, string> = {
   add_to_refs: "Add to references",
+  copy_to_seq_src: "Copy to SEQ/SRC",
   copy_path: "Copy path",
   copy_image: "Copy image",
   copy_prompt: "Copy prompt",
@@ -40,9 +42,18 @@ const LABELS: Record<AvailableAction, string> = {
 
 // Right-click menu for any gallery/preview image. Covers the full image-op
 // surface so keyboard-free workflows don't have to hunt for toolbar icons.
-export function PathContextMenu({ x, y, path, onClose, items = DEFAULT_ITEMS }: Props) {
+export function PathContextMenu({
+  x,
+  y,
+  path,
+  onClose,
+  items = DEFAULT_ITEMS,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number }>({ left: x, top: y });
+  const [pos, setPos] = useState<{ left: number; top: number }>({
+    left: x,
+    top: y,
+  });
 
   useLayoutEffect(() => {
     const el = ref.current;

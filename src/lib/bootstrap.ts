@@ -45,6 +45,10 @@ function currentAppState(): AppState {
   };
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
 export async function bootstrap(): Promise<() => void> {
   // Kick off models load early (independent).
   const modelsPromise = useModelsStore.getState().loadAll();
@@ -54,8 +58,12 @@ export async function bootstrap(): Promise<() => void> {
     cmd.config_load().catch(() => null),
     modelsPromise,
   ]);
-  const appState: AppState = (appStateRaw as AppState | null) ?? emptyAppState();
-  const config = (configRaw as Config | null) ?? null;
+  const appState: AppState = isRecord(appStateRaw)
+    ? (appStateRaw as unknown as AppState)
+    : emptyAppState();
+  const config: Config | null = isRecord(configRaw)
+    ? (configRaw as unknown as Config)
+    : null;
 
   // Apply color overrides (if any) at startup.
   if (config?.colors) applyColors(config.colors);
@@ -63,14 +71,21 @@ export async function bootstrap(): Promise<() => void> {
   // Apply model selection (before settings so defaults don't overwrite persisted).
   const entries = useModelsStore.getState().entries;
   const persistedModel = appState.lastModel
-    ? entries.find((e) => e.node.id === appState.lastModel)?.node ?? null
+    ? (entries.find((e) => e.node.id === appState.lastModel)?.node ?? null)
     : null;
   const gen = useGenerationStore.getState();
   if (persistedModel) gen.selectModel(persistedModel);
 
   // Apply remaining generation state.
-  const persistedSettings = (appState.settings ?? {}) as Record<string, unknown>;
-  if (persistedModel && persistedSettings && typeof persistedSettings === "object") {
+  const persistedSettings = (appState.settings ?? {}) as Record<
+    string,
+    unknown
+  >;
+  if (
+    persistedModel &&
+    persistedSettings &&
+    typeof persistedSettings === "object"
+  ) {
     for (const [k, v] of Object.entries(persistedSettings)) {
       gen.setSetting(k, v);
     }
@@ -81,8 +96,8 @@ export async function bootstrap(): Promise<() => void> {
     Array.isArray(appState.shotPrompts) && appState.shotPrompts.length > 0
       ? appState.shotPrompts
       : appState.shotPrompt
-      ? [appState.shotPrompt]
-      : [""];
+        ? [appState.shotPrompt]
+        : [""];
   gen.setShotPrompts(persistedShotPrompts);
   gen.setIterations(appState.iterations ?? 1);
   useGenerationStore.setState({ refImages: appState.refImages ?? [] });
@@ -114,16 +129,25 @@ export async function bootstrap(): Promise<() => void> {
               try {
                 await useSessionStore.getState().setShot(shotPath);
               } catch (e) {
-                console.warn(`[bootstrap] shot restore failed for ${shotPath}:`, e);
+                console.warn(
+                  `[bootstrap] shot restore failed for ${shotPath}:`,
+                  e,
+                );
               }
             }
           }
         } catch (e) {
-          console.warn(`[bootstrap] sequence restore failed for ${seqPath}:`, e);
+          console.warn(
+            `[bootstrap] sequence restore failed for ${seqPath}:`,
+            e,
+          );
         }
       }
     } catch (e) {
-      console.warn(`[bootstrap] project restore failed for ${appState.projectPath}:`, e);
+      console.warn(
+        `[bootstrap] project restore failed for ${appState.projectPath}:`,
+        e,
+      );
     }
   }
 

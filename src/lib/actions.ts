@@ -6,7 +6,12 @@ import { confirmAction, showMessage } from "./dialog";
 import { useGenerationStore } from "../stores/generationStore";
 import { useModelsStore } from "../stores/modelsStore";
 import { useSessionStore } from "../stores/sessionStore";
-import type { ImageMetadata, RefImage, RefSnapshot, RoleAssignment } from "./types";
+import type {
+  ImageMetadata,
+  RefImage,
+  RefSnapshot,
+  RoleAssignment,
+} from "./types";
 
 type FsExistsLike = (path: string) => Promise<boolean>;
 
@@ -80,7 +85,9 @@ export async function computeTraceSet(imagePath: string): Promise<Set<string>> {
     const p = queue.shift()!;
     if (visited.has(p)) continue;
     visited.add(p);
-    const meta = (await cmd.image_metadata_read(p).catch(() => null)) as ImageMetadata | null;
+    const meta = (await cmd
+      .image_metadata_read(p)
+      .catch(() => null)) as ImageMetadata | null;
     if (!meta) continue;
     for (const r of normalizeRefs(meta.refs)) {
       if (!visited.has(r.path)) queue.push(r.path);
@@ -123,7 +130,8 @@ export type ImageAction =
   | "trace"
   | "refresh"
   | "open_location"
-  | "delete";
+  | "delete"
+  | "copy_to_seq_src";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "m4v", "avi"]);
 
@@ -133,7 +141,9 @@ const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "m4v", "avi"]);
 async function copyImageToClipboard(path: string): Promise<void> {
   const ext = (path.split(".").pop() ?? "").toLowerCase();
   if (VIDEO_EXTS.has(ext)) {
-    await showMessage("Copy image not supported for video files", { kind: "warning" });
+    await showMessage("Copy image not supported for video files", {
+      kind: "warning",
+    });
     return;
   }
   const { fileSrc } = await import("./assets");
@@ -152,7 +162,10 @@ async function copyImageToClipboard(path: string): Promise<void> {
     if (!ctx) throw new Error("canvas 2d context unavailable");
     ctx.drawImage(img, 0, 0);
     const blob: Blob = await new Promise((res, rej) =>
-      canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/png"),
+      canvas.toBlob(
+        (b) => (b ? res(b) : rej(new Error("toBlob failed"))),
+        "image/png",
+      ),
     );
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
   } catch (e) {
@@ -161,7 +174,10 @@ async function copyImageToClipboard(path: string): Promise<void> {
 }
 
 /** Single entry point for any image op invoked from thumbs, preview, or zoom. */
-export async function performImageAction(action: ImageAction, path: string): Promise<void> {
+export async function performImageAction(
+  action: ImageAction,
+  path: string,
+): Promise<void> {
   const session = useSessionStore.getState();
   switch (action) {
     case "select":
@@ -189,30 +205,53 @@ export async function performImageAction(action: ImageAction, path: string): Pro
       }
       return;
     case "copy_settings": {
-      const meta = (await cmd.image_metadata_read(path).catch(() => null)) as
-        | ImageMetadata
-        | null;
+      const meta = (await cmd
+        .image_metadata_read(path)
+        .catch(() => null)) as ImageMetadata | null;
       if (!meta) {
         await showMessage("No metadata for this image", { kind: "warning" });
         return;
       }
       const { skippedRefs } = await copySettingsFromMetadata(meta);
       if (skippedRefs) {
-        await showMessage(`Loaded. ${skippedRefs} ref(s) skipped (files missing).`, {
-          kind: "info",
-        });
+        await showMessage(
+          `Loaded. ${skippedRefs} ref(s) skipped (files missing).`,
+          {
+            kind: "info",
+          },
+        );
       }
       return;
     }
     case "copy_prompt": {
-      const meta = (await cmd.image_metadata_read(path).catch(() => null)) as
-        | ImageMetadata
-        | null;
+      const meta = (await cmd
+        .image_metadata_read(path)
+        .catch(() => null)) as ImageMetadata | null;
       if (!meta) {
         await showMessage("No metadata for this image", { kind: "warning" });
         return;
       }
-      copyPromptFromMetadata(meta);
+      const prompt =
+        meta.shotPrompt ?? meta.prompt ?? meta.combinedPrompt ?? "";
+      try {
+        await navigator.clipboard.writeText(prompt);
+      } catch {
+        /* silent fallback */
+      }
+      return;
+    }
+    case "copy_to_seq_src": {
+      const { shotPath } = useSessionStore.getState();
+      if (!shotPath) {
+        await showMessage("No shot open", { kind: "warning" });
+        return;
+      }
+      try {
+        await cmd.ref_copy_to_seq_src(shotPath, path);
+        await session.rescanShot();
+      } catch (e) {
+        await showMessage(String(e), { kind: "error" });
+      }
       return;
     }
     case "refresh":
@@ -243,10 +282,13 @@ export async function performImageAction(action: ImageAction, path: string): Pro
       const img = session.columns
         .flatMap((c) => c.images)
         .find((i) => i.path === path);
-      const ok = await confirmAction(`Delete ${img?.filename ?? basename(path)}?`, {
-        title: "Delete image",
-        kind: "warning",
-      });
+      const ok = await confirmAction(
+        `Delete ${img?.filename ?? basename(path)}?`,
+        {
+          title: "Delete image",
+          kind: "warning",
+        },
+      );
       if (!ok) return;
       try {
         await cmd.image_delete(path);

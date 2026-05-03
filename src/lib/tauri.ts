@@ -14,13 +14,16 @@ import type {
 export const cmd = {
   // Config + app-state
   config_load: (): Promise<Config | null> => rawInvoke("config_load"),
-  config_save: (config: Config): Promise<void> => rawInvoke("config_save", { config }),
+  config_save: (config: Config): Promise<void> =>
+    rawInvoke("config_save", { config }),
 
   app_state_load: (): Promise<AppState | null> => rawInvoke("app_state_load"),
-  app_state_save: (state: AppState): Promise<void> => rawInvoke("app_state_save", { state }),
+  app_state_save: (state: AppState): Promise<void> =>
+    rawInvoke("app_state_save", { state }),
 
   fal_key_get: (): Promise<string> => rawInvoke("fal_key_get"),
-  fal_key_set: (key: string): Promise<void> => rawInvoke("fal_key_set", { key }),
+  fal_key_set: (key: string): Promise<void> =>
+    rawInvoke("fal_key_set", { key }),
   provider_key_get: (provider: string): Promise<string> =>
     rawInvoke("provider_key_get", { provider }),
   provider_key_set: (provider: string, key: string): Promise<void> =>
@@ -32,20 +35,30 @@ export const cmd = {
   // Session
   project_open: (projectPath: string): Promise<string[]> =>
     rawInvoke("project_open", { projectPath }),
-  sequence_open: (sequencePath: string): Promise<{ shots: string[]; sidecar: SequenceSidecar }> =>
+  sequence_open: (
+    sequencePath: string,
+  ): Promise<{ shots: string[]; sidecar: SequenceSidecar }> =>
     rawInvoke("sequence_open", { sequencePath }),
   sequence_create: (projectPath: string, name: string): Promise<string> =>
     rawInvoke("sequence_create", { projectPath, name }),
-  shot_open: (shotPath: string): Promise<{ columns: GalleryColumn[]; sidecar: ShotSidecar }> =>
+  shot_open: (
+    shotPath: string,
+  ): Promise<{ columns: GalleryColumn[]; sidecar: ShotSidecar }> =>
     rawInvoke("shot_open", { shotPath }),
   shot_create: (sequencePath: string, name: string): Promise<string> =>
     rawInvoke("shot_create", { sequencePath, name }),
   shot_rescan: (shotPath: string): Promise<GalleryColumn[]> =>
     rawInvoke("shot_rescan", { shotPath }),
 
-  sequence_prompt_append: (sequencePath: string, prompt: string): Promise<SequenceSidecar> =>
+  sequence_prompt_append: (
+    sequencePath: string,
+    prompt: string,
+  ): Promise<SequenceSidecar> =>
     rawInvoke("sequence_prompt_append", { sequencePath, prompt }),
-  shot_prompt_append: (shotPath: string, prompt: string): Promise<ShotSidecar> =>
+  shot_prompt_append: (
+    shotPath: string,
+    prompt: string,
+  ): Promise<ShotSidecar> =>
     rawInvoke("shot_prompt_append", { shotPath, prompt }),
 
   version_create_next: (shotPath: string): Promise<string> =>
@@ -54,15 +67,26 @@ export const cmd = {
   ref_copy_to_src: (shotPath: string, sourcePath: string): Promise<string> =>
     rawInvoke("ref_copy_to_src", { shotPath, sourcePath }),
 
+  ref_copy_to_seq_src: (
+    shotPath: string,
+    sourcePath: string,
+  ): Promise<string> =>
+    rawInvoke("ref_copy_to_seq_src", { shotPath, sourcePath }),
+
   reveal_in_explorer: (path: string): Promise<void> =>
     rawInvoke("reveal_in_explorer", { path }),
 
   image_metadata_read: (imagePath: string): Promise<ImageMetadata | null> =>
     rawInvoke("image_metadata_read", { imagePath }),
-  image_metadata_write: (imagePath: string, metadata: ImageMetadata): Promise<void> =>
+  image_metadata_write: (
+    imagePath: string,
+    metadata: ImageMetadata,
+  ): Promise<void> =>
     rawInvoke("image_metadata_write", { imagePath, metadata }),
-  image_delete: (imagePath: string): Promise<void> => rawInvoke("image_delete", { imagePath }),
-  column_delete: (columnPath: string): Promise<void> => rawInvoke("column_delete", { columnPath }),
+  image_delete: (imagePath: string): Promise<void> =>
+    rawInvoke("image_delete", { imagePath }),
+  column_delete: (columnPath: string): Promise<void> =>
+    rawInvoke("column_delete", { columnPath }),
 
   download_to_path: (url: string, target: string): Promise<void> =>
     rawInvoke("download_to_path", { url, target }),

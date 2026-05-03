@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cmd } from "../lib/tauri";
 import { pickFile, showMessage } from "../lib/dialog";
 import { applyColors, COLOR_KEYS, DEFAULT_COLORS } from "../lib/colors";
-import { useSessionStore } from "../stores/sessionStore";
 import type { ColorOverrides, Config } from "../lib/types";
 
 type Props = {
   onClose: () => void;
 };
 
-const FILENAME_TEMPLATE_DEFAULT = "<date>_<time>_<sequence>_<shot>_<model>_<version>";
+const FILENAME_TEMPLATE_DEFAULT =
+  "<date>_<time>_<sequence>_<shot>_<model>_<version>";
 
 const DEFAULT: Config = {
   windowBounds: { width: 1600, height: 1000 },
@@ -19,7 +19,6 @@ const DEFAULT: Config = {
   lastModel: "",
   ffmpegPath: "",
   maxConcurrentJobs: 3,
-  srcScope: "shot",
   filenameTemplate: undefined,
   colors: undefined,
 };
@@ -30,8 +29,9 @@ export function SettingsDialog({ onClose }: Props) {
   const [revealKey, setRevealKey] = useState(false);
   const [revealReplicate, setRevealReplicate] = useState(false);
   const [config, setConfig] = useState<Config>(DEFAULT);
-  const [originalColors, setOriginalColors] = useState<ColorOverrides | undefined>(undefined);
-  const [originalSrcScope, setOriginalSrcScope] = useState<"shot" | "sequence">("shot");
+  const [originalColors, setOriginalColors] = useState<
+    ColorOverrides | undefined
+  >(undefined);
   const [busy, setBusy] = useState(false);
 
   const currentColors = useMemo<Required<ColorOverrides>>(
@@ -52,18 +52,19 @@ export function SettingsDialog({ onClose }: Props) {
         const cfg = c as Config;
         setConfig(cfg);
         setOriginalColors(cfg.colors);
-        setOriginalSrcScope(cfg.srcScope ?? "shot");
       }
     })();
   }, []);
 
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
+
   useEffect(() => {
     const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") handleCloseRef.current();
     };
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Live-preview color edits while the dialog is open.
@@ -78,7 +79,9 @@ export function SettingsDialog({ onClose }: Props) {
   }
 
   async function browseFfmpeg() {
-    const paths = await pickFile("Pick ffmpeg executable", { extensions: ["exe"] });
+    const paths = await pickFile("Pick ffmpeg executable", {
+      extensions: ["exe"],
+    });
     if (paths?.[0]) setConfig((c) => ({ ...c, ffmpegPath: paths[0] }));
   }
 
@@ -97,11 +100,6 @@ export function SettingsDialog({ onClose }: Props) {
       await cmd.provider_key_set("replicate", replicateKey.trim());
       await cmd.config_save(config);
       setOriginalColors(config.colors);
-      const newScope = config.srcScope ?? "shot";
-      if (newScope !== originalSrcScope) {
-        setOriginalSrcScope(newScope);
-        await useSessionStore.getState().rescanShot().catch(() => {});
-      }
       onClose();
     } catch (e) {
       await showMessage(String(e), { kind: "error" });
@@ -189,7 +187,9 @@ export function SettingsDialog({ onClose }: Props) {
                 const n = parseInt(e.currentTarget.value, 10);
                 setConfig((c) => ({
                   ...c,
-                  maxConcurrentJobs: Number.isFinite(n) ? Math.max(1, Math.min(10, n)) : 3,
+                  maxConcurrentJobs: Number.isFinite(n)
+                    ? Math.max(1, Math.min(10, n))
+                    : 3,
                 }));
               }}
               className="bg-bg px-2 py-1 text-xs font-mono w-20"
@@ -200,34 +200,6 @@ export function SettingsDialog({ onClose }: Props) {
             </div>
           </Field>
 
-          <Field label="SRC location">
-            <div className="flex flex-col gap-1 text-xs">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="srcScope"
-                  checked={(config.srcScope ?? "shot") === "shot"}
-                  onChange={() => setConfig((c) => ({ ...c, srcScope: "shot" }))}
-                  className="accent-accent"
-                />
-                per shot — <code>&lt;shot&gt;/SRC/</code>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="srcScope"
-                  checked={(config.srcScope ?? "shot") === "sequence"}
-                  onChange={() => setConfig((c) => ({ ...c, srcScope: "sequence" }))}
-                  className="accent-accent"
-                />
-                per sequence — <code>&lt;sequence&gt;/SRC/</code>
-              </label>
-            </div>
-            <div className="text-xs text-dim mt-1">
-              Existing files are not moved when you switch. Flip back to see old files.
-            </div>
-          </Field>
-
           <Field label="Filename template">
             <div className="flex gap-1">
               <input
@@ -235,7 +207,10 @@ export function SettingsDialog({ onClose }: Props) {
                 value={config.filenameTemplate ?? ""}
                 onChange={(e) => {
                   const value = e.currentTarget.value;
-                  setConfig((c) => ({ ...c, filenameTemplate: value || undefined }));
+                  setConfig((c) => ({
+                    ...c,
+                    filenameTemplate: value || undefined,
+                  }));
                 }}
                 className="flex-1 bg-bg px-2 py-1 text-xs font-mono"
                 placeholder={FILENAME_TEMPLATE_DEFAULT}
@@ -243,13 +218,19 @@ export function SettingsDialog({ onClose }: Props) {
               <button
                 type="button"
                 className="px-2 bg-bg text-xs"
-                onClick={() => setConfig((c) => ({ ...c, filenameTemplate: undefined }))}
+                onClick={() =>
+                  setConfig((c) => ({ ...c, filenameTemplate: undefined }))
+                }
               >
                 reset
               </button>
             </div>
             <div className="text-xs text-dim mt-1">
-              Tokens: <code>&lt;date&gt;</code> <code>&lt;time&gt;</code> <code>&lt;sequence&gt;</code> <code>&lt;shot&gt;</code> <code>&lt;model&gt;</code> <code>&lt;version&gt;</code> <code>&lt;prompt&gt;</code> <code>&lt;iter&gt;</code> <code>&lt;seed&gt;</code> <code>&lt;provider&gt;</code>
+              Tokens: <code>&lt;date&gt;</code> <code>&lt;time&gt;</code>{" "}
+              <code>&lt;sequence&gt;</code> <code>&lt;shot&gt;</code>{" "}
+              <code>&lt;model&gt;</code> <code>&lt;version&gt;</code>{" "}
+              <code>&lt;prompt&gt;</code> <code>&lt;iter&gt;</code>{" "}
+              <code>&lt;seed&gt;</code> <code>&lt;provider&gt;</code>
             </div>
           </Field>
 
@@ -291,10 +272,18 @@ export function SettingsDialog({ onClose }: Props) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-xs font-semibold text-dim uppercase tracking-wide">{label}</div>
+      <div className="text-xs font-semibold text-dim uppercase tracking-wide">
+        {label}
+      </div>
       {children}
     </div>
   );

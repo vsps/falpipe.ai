@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use serde::Serialize;
 
-use crate::commands::config::read_json_or_default;
-use crate::domain::{Config, GalleryColumn, GalleryImage, ProjectSidecar, PromptEntry, SequenceSidecar, ShotSidecar};
+use crate::domain::{
+    GalleryColumn, GalleryImage, ProjectSidecar, PromptEntry, SequenceSidecar, ShotSidecar,
+};
 use crate::error::{AppError, AppResult};
-use crate::paths;
 
 const PROJECT_SIDECAR: &str = "project.json";
 const SEQUENCE_SIDECAR: &str = "sequence.json";
@@ -23,9 +23,7 @@ fn as_str(p: &Path) -> String {
 }
 
 fn is_version_name(name: &str) -> bool {
-    name.len() == 4
-        && name.starts_with('v')
-        && name[1..].chars().all(|c| c.is_ascii_digit())
+    name.len() == 4 && name.starts_with('v') && name[1..].chars().all(|c| c.is_ascii_digit())
 }
 
 fn read_sidecar<T: serde::de::DeserializeOwned + Default>(path: &Path) -> AppResult<T> {
@@ -55,18 +53,10 @@ fn ensure_dir(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Resolve which SRC dir applies for a given shot. Toggle lives in Config.
-/// "shot" (default) → `<shot>/SRC`. "sequence" → `<shot>/../SRC`.
-fn src_dir_for(shot_path: &Path) -> AppResult<PathBuf> {
-    let cfg: Config = read_json_or_default(&paths::config_path()?)?;
-    let dir = if cfg.src_scope == "sequence" {
-        shot_path
-            .parent()
-            .ok_or_else(|| AppError::Msg("no sequence parent".into()))?
-            .join(SRC_DIR)
-    } else {
-        shot_path.join(SRC_DIR)
-    };
+/// Always resolves to `<shot>/SRC`. Sequence-level SRC is handled separately
+/// via `ref_copy_to_seq_src`.
+fn shot_src_dir(shot_path: &Path) -> AppResult<PathBuf> {
+    let dir = shot_path.join(SRC_DIR);
     ensure_dir(&dir)?;
     Ok(dir)
 }
@@ -185,7 +175,7 @@ pub fn shot_open(shot_path: String) -> AppResult<ShotOpenResult> {
     if !root.is_dir() {
         return Err(AppError::Msg(format!("not a directory: {shot_path}")));
     }
-    src_dir_for(&root)?;
+    shot_src_dir(&root)?;
     let sidecar: ShotSidecar = read_sidecar(&root.join(SHOT_SIDECAR))?;
     let columns = scan_shot_columns(&root)?;
     Ok(ShotOpenResult { columns, sidecar })
@@ -201,7 +191,7 @@ pub fn shot_rescan(shot_path: String) -> AppResult<Vec<GalleryColumn>> {
 pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
     let target = PathBuf::from(&sequence_path).join(sanitize(&name));
     ensure_dir(&target)?;
-    src_dir_for(&target)?;
+    shot_src_dir(&target)?;
     let sidecar_path = target.join(SHOT_SIDECAR);
     if !sidecar_path.exists() {
         write_sidecar_atomic(
@@ -216,10 +206,39 @@ pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
 }
 
 fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
-    let cfg: Config = read_json_or_default(&paths::config_path()?)?;
-    let src_at_sequence = cfg.src_scope == "sequence";
-
     let mut cols: Vec<GalleryColumn> = Vec::new();
+
+    // Always include the shot's own SRC as "SHOT SRC".
+    let shot_src = root.join(SRC_DIR);
+    if shot_src.is_dir() {
+        let images = scan_directory_images(&shot_src)?;
+        cols.push(GalleryColumn {
+            id: as_str(&shot_src),
+            version: "SHOT SRC".to_string(),
+            is_src: true,
+            images,
+            timestamp: None,
+            model_name: None,
+        });
+    }
+
+    // Always include the sequence-level SRC as "SEQ SRC".
+    if let Some(seq) = root.parent() {
+        let seq_src = seq.join(SRC_DIR);
+        if seq_src.is_dir() {
+            let images = scan_directory_images(&seq_src)?;
+            cols.push(GalleryColumn {
+                id: as_str(&seq_src),
+                version: "SEQ SRC".to_string(),
+                is_src: true,
+                images,
+                timestamp: None,
+                model_name: None,
+            });
+        }
+    }
+
+    // Scan version directories.
     for entry in std::fs::read_dir(root)? {
         let entry = entry?;
         let p = entry.path();
@@ -230,12 +249,9 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
             Some(n) => n.to_string(),
             None => continue,
         };
-        let is_src = name == SRC_DIR;
-        // When SRC lives at sequence scope, ignore the shot's local SRC dir.
-        if is_src && src_at_sequence {
+        if name == SRC_DIR {
             continue;
         }
-        // Skip hidden and system directories.
         if name.starts_with('.') || name.starts_with('$') {
             continue;
         }
@@ -243,28 +259,11 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
         cols.push(GalleryColumn {
             id: name.clone(),
             version: name,
-            is_src,
+            is_src: false,
             images,
             timestamp: None,
             model_name: None,
         });
-    }
-
-    if src_at_sequence {
-        if let Some(seq) = root.parent() {
-            let seq_src = seq.join(SRC_DIR);
-            if seq_src.is_dir() {
-                let images = scan_directory_images(&seq_src)?;
-                cols.push(GalleryColumn {
-                    id: SRC_DIR.to_string(),
-                    version: SRC_DIR.to_string(),
-                    is_src: true,
-                    images,
-                    timestamp: None,
-                    model_name: None,
-                });
-            }
-        }
     }
 
     cols.sort_by(|a, b| match (a.is_src, b.is_src) {
@@ -309,7 +308,11 @@ fn scan_directory_images(dir: &Path) -> AppResult<Vec<GalleryImage>> {
         let meta_path = path.with_file_name(format!("{stem}.json"));
         let thumb_path = if is_video {
             let t = path.with_file_name(format!("{stem}.thumb.png"));
-            if t.exists() { Some(as_str(&t)) } else { None }
+            if t.exists() {
+                Some(as_str(&t))
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -361,11 +364,30 @@ pub fn ref_copy_to_src(shot_path: String, source_path: String) -> AppResult<Stri
     if !src.is_file() {
         return Err(AppError::Msg(format!("not a file: {source_path}")));
     }
-    let src_dir = src_dir_for(&PathBuf::from(&shot_path))?;
+    let dir = shot_src_dir(&PathBuf::from(&shot_path))?;
     let filename = src
         .file_name()
         .ok_or_else(|| AppError::Msg("no filename".into()))?;
-    let dest = src_dir.join(filename);
+    let dest = dir.join(filename);
+    std::fs::copy(&src, &dest)?;
+    Ok(as_str(&dest))
+}
+
+#[tauri::command]
+pub fn ref_copy_to_seq_src(shot_path: String, source_path: String) -> AppResult<String> {
+    let src = PathBuf::from(&source_path);
+    if !src.is_file() {
+        return Err(AppError::Msg(format!("not a file: {source_path}")));
+    }
+    let seq_dir = PathBuf::from(&shot_path)
+        .parent()
+        .ok_or_else(|| AppError::Msg("no sequence parent".into()))?
+        .join(SRC_DIR);
+    ensure_dir(&seq_dir)?;
+    let filename = src
+        .file_name()
+        .ok_or_else(|| AppError::Msg("no filename".into()))?;
+    let dest = seq_dir.join(filename);
     std::fs::copy(&src, &dest)?;
     Ok(as_str(&dest))
 }
@@ -376,7 +398,11 @@ pub fn sequence_prompt_append(sequence_path: String, prompt: String) -> AppResul
     let path = root.join(SEQUENCE_SIDECAR);
     let mut sidecar: SequenceSidecar = read_sidecar(&path)?;
     if sidecar.name.is_empty() {
-        sidecar.name = root.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        sidecar.name = root
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
     }
     if sidecar.prompt_history.last().map(|e| e.prompt.as_str()) != Some(prompt.as_str()) {
         sidecar.prompt_history.push(PromptEntry {
@@ -394,7 +420,11 @@ pub fn shot_prompt_append(shot_path: String, prompt: String) -> AppResult<ShotSi
     let path = root.join(SHOT_SIDECAR);
     let mut sidecar: ShotSidecar = read_sidecar(&path)?;
     if sidecar.name.is_empty() {
-        sidecar.name = root.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
+        sidecar.name = root
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
     }
     if sidecar.prompt_history.last().map(|e| e.prompt.as_str()) != Some(prompt.as_str()) {
         sidecar.prompt_history.push(PromptEntry {

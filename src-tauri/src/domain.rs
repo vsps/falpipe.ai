@@ -104,28 +104,31 @@ pub struct Config {
     pub ffmpeg_path: String,
     #[serde(default = "default_max_concurrent_jobs")]
     pub max_concurrent_jobs: u32,
-    #[serde(default = "default_src_scope")]
-    pub src_scope: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub filename_template: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub colors: Option<ColorOverrides>,
 }
 
-fn default_max_concurrent_jobs() -> u32 { 3 }
-fn default_src_scope() -> String { "shot".into() }
+fn default_max_concurrent_jobs() -> u32 {
+    3
+}
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            window_bounds: WindowBounds { x: None, y: None, width: 1600, height: 1000 },
+            window_bounds: WindowBounds {
+                x: None,
+                y: None,
+                width: 1600,
+                height: 1000,
+            },
             project_path: String::new(),
             last_sequence: String::new(),
             last_shot: String::new(),
             last_model: String::new(),
             ffmpeg_path: String::new(),
             max_concurrent_jobs: default_max_concurrent_jobs(),
-            src_scope: default_src_scope(),
             filename_template: None,
             colors: None,
         }
@@ -139,7 +142,10 @@ pub enum RoleAssignment {
     Start,
     End,
     #[serde(rename_all = "camelCase")]
-    Element { group_name: String, frontal: bool },
+    Element {
+        group_name: String,
+        frontal: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,10 +188,18 @@ pub struct AppState {
     pub log_height: u32,
 }
 
-fn one() -> u32 { 1 }
-fn default_gallery_height() -> u32 { 400 }
-fn default_thumb_col_width() -> u32 { 180 }
-fn default_log_height() -> u32 { 78 }
+fn one() -> u32 {
+    1
+}
+fn default_gallery_height() -> u32 {
+    400
+}
+fn default_thumb_col_width() -> u32 {
+    120
+}
+fn default_log_height() -> u32 {
+    78
+}
 
 impl Default for AppState {
     fn default() -> Self {
@@ -201,7 +215,7 @@ impl Default for AppState {
             ref_images: vec![],
             iterations: 1,
             gallery_height: 400,
-            thumb_col_width: 180,
+            thumb_col_width: 120,
             log_height: 78,
         }
     }

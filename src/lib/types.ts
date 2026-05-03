@@ -152,8 +152,6 @@ export type Config = {
   ffmpegPath: string;
   /** Max number of submissions running in parallel; default 3. */
   maxConcurrentJobs?: number;
-  /** Where SRC lives on disk: per shot (default) or per sequence. */
-  srcScope?: "shot" | "sequence";
   /** Output filename template. Tokens: <date> <time> <sequence> <shot> <model> <version> <prompt> <iter> <seed> <provider> */
   filenameTemplate?: string;
   colors?: ColorOverrides;
@@ -269,4 +267,13 @@ export type LogEvent = {
   message: string;
   /** Short tag used to disambiguate concurrent jobs (e.g. first 6 chars of the job id). */
   tag?: string;
+};
+
+// ---------- Uploaded references (used by generate / args) ----------
+
+export type UploadedRef = { ref: RefImage; url: string };
+
+export type KlingElement = {
+  frontal_image_url: string;
+  reference_image_urls: string[];
 };

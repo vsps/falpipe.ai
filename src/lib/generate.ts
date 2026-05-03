@@ -9,16 +9,15 @@ import type {
   Job,
   ModelNode,
   RefImage,
-  RefRoleSpec,
   RoleAssignment,
+  UploadedRef,
 } from "./types";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { getProvider } from "./providers";
 import type { ProviderOutput, ProviderProgress } from "./providers";
-
-// ---------- Orchestration entry ----------
-
+import { extractErrorMessage } from "./errors";
+import { buildArgs, guessContentType } from "./args";
 // Per-job AbortController. Keyed by job id so cancellation can target one or all.
 const abortControllers = new Map<string, AbortController>();
 
@@ -35,7 +34,6 @@ let cachedMaxConcurrent = 3;
 // runJob; without this flag, two enqueues could race and over-dispatch.
 let pumping = false;
 
-type UploadedRef = { ref: RefImage; url: string };
 
 type JobSpec = {
   id: string;
@@ -54,7 +52,10 @@ type JobSpec = {
 };
 
 /** Preflight ref-role check. Returns false when the user cancels. */
-async function preflightRefs(node: ModelNode, refs: RefImage[]): Promise<boolean> {
+async function preflightRefs(
+  node: ModelNode,
+  refs: RefImage[],
+): Promise<boolean> {
   const roles = node.ref_roles ?? [];
   const wantsStart = roles.some((r) => r.role === "start");
   const wantsElement = roles.some((r) => r.role === "element");
@@ -98,9 +99,13 @@ export async function enqueueGeneration(): Promise<void> {
     return;
   }
 
-  const shotCombined = gen.shotPrompts.map((s) => s.trim()).filter((s) => s.length > 0).join("\n\n");
-  const combined =
-    [gen.sequencePrompt, shotCombined].filter((s) => s.trim().length > 0).join("\n\n");
+  const shotCombined = gen.shotPrompts
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .join("\n\n");
+  const combined = [gen.sequencePrompt, shotCombined]
+    .filter((s) => s.trim().length > 0)
+    .join("\n\n");
   if (combined.length === 0) {
     gen.setError("Both prompts are empty.");
     return;
@@ -131,7 +136,10 @@ export async function enqueueGeneration(): Promise<void> {
   const id = crypto.randomUUID();
   const tag = id.slice(0, 6);
   const shotPrompts = gen.shotPrompts.slice();
-  const shotPrompt = shotPrompts.map((s) => s.trim()).filter((s) => s.length > 0).join("\n\n");
+  const shotPrompt = shotPrompts
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .join("\n\n");
   const iterations = Math.max(1, gen.iterations | 0);
 
   const spec: JobSpec = {
@@ -171,7 +179,10 @@ export async function enqueueGeneration(): Promise<void> {
   // reflects the latest prompts even before the job is dispatched.
   if (session.sequencePath && spec.sequencePrompt.length > 0) {
     try {
-      const sidecar = await cmd.sequence_prompt_append(session.sequencePath, spec.sequencePrompt);
+      const sidecar = await cmd.sequence_prompt_append(
+        session.sequencePath,
+        spec.sequencePrompt,
+      );
       useSessionStore.getState().hydrateSequenceSidecar(sidecar);
     } catch {
       /* swallow — history append failures are non-fatal */
@@ -239,15 +250,26 @@ async function pumpQueue(): Promise<void> {
 export function cancelAllGenerations(): void {
   const state = useGenerationStore.getState();
   for (const j of state.jobs) {
-    if (j.status === "done" || j.status === "failed" || j.status === "cancelled") continue;
+    if (
+      j.status === "done" ||
+      j.status === "failed" ||
+      j.status === "cancelled"
+    )
+      continue;
     if (j.status === "queued") {
       jobSpecs.delete(j.id);
-      state.updateJob(j.id, { status: "cancelled", progressMessage: "Cancelled" });
+      state.updateJob(j.id, {
+        status: "cancelled",
+        progressMessage: "Cancelled",
+      });
       schedulePrune(j.id);
       pushLog("INFO", "Cancelled (was queued)", j.id.slice(0, 6));
       continue;
     }
-    state.updateJob(j.id, { status: "cancelling", progressMessage: "Cancelling…" });
+    state.updateJob(j.id, {
+      status: "cancelling",
+      progressMessage: "Cancelling…",
+    });
     abortControllers.get(j.id)?.abort();
   }
 }
@@ -267,7 +289,10 @@ async function runJob(spec: JobSpec): Promise<void> {
   const controller = new AbortController();
   abortControllers.set(spec.id, controller);
 
-  gen.updateJob(spec.id, { status: "uploading", progressMessage: "Uploading references…" });
+  gen.updateJob(spec.id, {
+    status: "uploading",
+    progressMessage: "Uploading references…",
+  });
   pushLog("INFO", `Generating with ${spec.node.name}`, tag);
 
   try {
@@ -275,9 +300,16 @@ async function runJob(spec: JobSpec): Promise<void> {
     await provider.prepare();
 
     const uploaded = await uploadRefs(provider, spec.refs, controller.signal);
-    if (controller.signal.aborted) throw new DOMException("aborted", "AbortError");
+    if (controller.signal.aborted)
+      throw new DOMException("aborted", "AbortError");
 
-    const baseArgs = buildArgs(spec.node, spec.sequencePrompt, spec.shotPrompt, spec.settings, uploaded);
+    const baseArgs = buildArgs(
+      spec.node,
+      spec.sequencePrompt,
+      spec.shotPrompt,
+      spec.settings,
+      uploaded,
+    );
     const versionDir = joinPath(spec.shotPath, spec.targetVersion);
 
     const batched = !!spec.node.batch_field && spec.iterations > 1;
@@ -294,7 +326,10 @@ async function runJob(spec: JobSpec): Promise<void> {
         controller.signal,
         (e) => reportProgress(spec.id, 1, spec.iterations, e),
       );
-      gen.updateJob(spec.id, { status: "downloading", progressMessage: "Downloading…" });
+      gen.updateJob(spec.id, {
+        status: "downloading",
+        progressMessage: "Downloading…",
+      });
       const outs = await downloadAndWrite({
         out,
         node: spec.node,
@@ -326,7 +361,10 @@ async function runJob(spec: JobSpec): Promise<void> {
           controller.signal,
           (e) => reportProgress(spec.id, k, spec.iterations, e),
         );
-        gen.updateJob(spec.id, { status: "downloading", progressMessage: `Downloading (${k}/${spec.iterations})…` });
+        gen.updateJob(spec.id, {
+          status: "downloading",
+          progressMessage: `Downloading (${k}/${spec.iterations})…`,
+        });
         const outs = await downloadAndWrite({
           out,
           node: spec.node,
@@ -365,14 +403,21 @@ async function runJob(spec: JobSpec): Promise<void> {
   } catch (e: unknown) {
     const err = e as { name?: string };
     if (err.name === "AbortError" || controller.signal.aborted) {
-      gen.updateJob(spec.id, { status: "cancelled", progressMessage: "Cancelled" });
+      gen.updateJob(spec.id, {
+        status: "cancelled",
+        progressMessage: "Cancelled",
+      });
       pushLog("INFO", "Cancelled by user", tag);
     } else {
       // Always dump the raw error so dev tools shows every field — wrappers
       // around fetch/SDK errors otherwise lose status/body when stringified.
       console.error(`[job ${tag}] failed:`, e);
       const msg = extractErrorMessage(e);
-      gen.updateJob(spec.id, { status: "failed", progressMessage: "Failed", error: msg });
+      gen.updateJob(spec.id, {
+        status: "failed",
+        progressMessage: "Failed",
+        error: msg,
+      });
       gen.setError(msg);
       pushLog("ERROR", msg, tag);
     }
@@ -384,7 +429,12 @@ async function runJob(spec: JobSpec): Promise<void> {
   }
 }
 
-function reportProgress(jobId: string, k: number, total: number, e: ProviderProgress) {
+function reportProgress(
+  jobId: string,
+  k: number,
+  total: number,
+  e: ProviderProgress,
+) {
   const gen = useGenerationStore.getState();
   const prefix = total > 1 ? `(${k}/${total}) ` : "";
   if (e.kind === "queued") {
@@ -407,7 +457,9 @@ function reportProgress(jobId: string, k: number, total: number, e: ProviderProg
 }
 
 async function uploadRefs(
-  provider: { uploadFile: (file: File, signal: AbortSignal) => Promise<string> },
+  provider: {
+    uploadFile: (file: File, signal: AbortSignal) => Promise<string>;
+  },
   refs: RefImage[],
   signal: AbortSignal,
 ): Promise<UploadedRef[]> {
@@ -424,192 +476,10 @@ async function uploadRefs(
   return out;
 }
 
-function guessContentType(filename: string): string {
-  const ext = filename.split(".").pop()?.toLowerCase();
-  const map: Record<string, string> = {
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    webp: "image/webp",
-    gif: "image/gif",
-    mp4: "video/mp4",
-    webm: "video/webm",
-  };
-  return map[ext ?? ""] ?? "application/octet-stream";
-}
-
-export function buildArgs(
-  node: ModelNode,
-  sequencePrompt: string,
-  shotPrompt: string,
-  settings: Record<string, unknown>,
-  uploaded: UploadedRef[],
-): Record<string, unknown> {
-  const args: Record<string, unknown> = {};
-
-  for (const [k, v] of Object.entries(settings)) {
-    if (k === "seed" && v === -1) continue;
-    args[k] = v;
-  }
-
-  const combined = [sequencePrompt, shotPrompt]
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .join("\n\n");
-  if (combined.length > 0) args["prompt"] = combined;
-
-  if (node.ref_roles && node.ref_roles.length > 0) {
-    const bucket: Record<string, UploadedRef[]> = {};
-    const unassigned: UploadedRef[] = [];
-    for (const r of uploaded) {
-      const a = r.ref.roleAssignment;
-      if (!a) {
-        unassigned.push(r);
-        continue;
-      }
-      const key = a.kind === "element" ? `element:${a.groupName}`
-                : a.kind === "image" ? `image:${a.groupName}`
-                : a.kind;
-      (bucket[key] ??= []).push(r);
-    }
-
-    // Auto-element fallback: if the model supports "element" AND the user
-    // assigned no roles to anything, promote each unassigned ref to its own
-    // element group. Lets Kling 3 ref2vid accept "just these images" without
-    // forcing a role click for every thumb.
-    const hasElementRole = node.ref_roles.some((r) => r.role === "element");
-    if (
-      hasElementRole &&
-      Object.keys(bucket).length === 0 &&
-      unassigned.length > 0
-    ) {
-      unassigned.forEach((u, i) => {
-        bucket[`element:${i + 1}`] = [u];
-      });
-      unassigned.length = 0;
-    }
-
-    let sourceConsumed = false;
-    for (const role of node.ref_roles) {
-      if (role.role === "element") {
-        const elements = buildElements(bucket, role.max);
-        if (elements.length > 0) args[role.api_field] = elements;
-        continue;
-      }
-      if (role.role === "image") {
-        const urls = buildImageArray(bucket, role.max);
-        if (urls.length > 0) args[role.api_field] = urls;
-        continue;
-      }
-      const slice = selectForRole(role, bucket, unassigned, sourceConsumed);
-      if (slice.length === 0) continue;
-      if (role.role === "source") sourceConsumed = true;
-      const urls = slice.map((s) => s.url);
-      const isScalar = urls.length === 1 && (role.max === 1 || role.exclusive);
-      args[role.api_field] = isScalar ? urls[0] : urls;
-    }
-  } else if (uploaded.length > 0) {
-    args["image_urls"] = uploaded.map((u) => u.url);
-  }
-
-  for (const input of node.inputs) {
-    if (input.api_format === "array" && input.api_field in args) {
-      const v = args[input.api_field];
-      if (!Array.isArray(v)) args[input.api_field] = [v];
-    }
-  }
-
-  return args;
-}
-
-function selectForRole(
-  role: RefRoleSpec,
-  bucket: Record<string, UploadedRef[]>,
-  unassigned: UploadedRef[],
-  sourceConsumed: boolean,
-): UploadedRef[] {
-  if (role.exclusive) {
-    return (bucket[role.role] ?? []).slice(0, 1);
-  }
-  let picked = bucket[role.role] ?? [];
-  if (picked.length === 0 && role.role === "source" && !sourceConsumed) {
-    picked = unassigned;
-  }
-  return role.max ? picked.slice(0, role.max) : picked;
-}
-
-type KlingElement = {
-  frontal_image_url: string;
-  reference_image_urls: string[];
-};
-
-// Emit Kling-shaped elements[] — one entry per element:<groupName> bucket,
-// ordered by numeric groupName (user-assigned; gaps collapse at emission time
-// since Kling references elements positionally as @Element1..N).
-// Each element must have BOTH frontal_image_url and reference_image_urls per
-// Kling's schema. If a group has only one image, the frontal is duplicated
-// into the refs list. If no image is explicitly frontal (should be rare —
-// the store auto-promotes the first), we promote the first here too.
-function buildElements(
-  bucket: Record<string, UploadedRef[]>,
-  max?: number,
-): KlingElement[] {
-  const keys = Object.keys(bucket)
-    .filter((k) => k.startsWith("element:"))
-    .sort((a, b) => {
-      const na = Number(a.slice(8));
-      const nb = Number(b.slice(8));
-      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
-      return a.localeCompare(b);
-    });
-
-  const out: KlingElement[] = [];
-  for (const key of keys) {
-    const refs = bucket[key];
-    if (refs.length === 0) continue;
-
-    let frontal: string | undefined;
-    const rest: string[] = [];
-    for (const r of refs) {
-      const a = r.ref.roleAssignment;
-      if (a?.kind === "element" && a.frontal && !frontal) frontal = r.url;
-      else rest.push(r.url);
-    }
-    if (!frontal) {
-      frontal = refs[0].url;
-      rest.shift();
-    }
-    out.push({
-      frontal_image_url: frontal,
-      reference_image_urls: rest.length > 0 ? rest : [frontal],
-    });
-  }
-  return max ? out.slice(0, max) : out;
-}
-
-// Emit a flat URL array for "image" role groups, ordered by numeric group name.
-function buildImageArray(
-  bucket: Record<string, UploadedRef[]>,
-  max?: number,
-): string[] {
-  const keys = Object.keys(bucket)
-    .filter((k) => k.startsWith("image:"))
-    .sort((a, b) => {
-      const na = Number(a.slice(6));
-      const nb = Number(b.slice(6));
-      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
-      return a.localeCompare(b);
-    });
-  const urls: string[] = [];
-  for (const key of keys) {
-    for (const r of bucket[key]) urls.push(r.url);
-  }
-  return max ? urls.slice(0, max) : urls;
-}
-
 // ---------- Download + sidecar ----------
 
-const DEFAULT_FILENAME_TEMPLATE = "<date>_<time>_<sequence>_<shot>_<model>_<version>";
+const DEFAULT_FILENAME_TEMPLATE =
+  "<date>_<time>_<sequence>_<shot>_<model>_<version>";
 
 type DownloadCtx = {
   out: ProviderOutput;
@@ -641,7 +511,9 @@ async function downloadAndWrite(ctx: DownloadCtx): Promise<string[]> {
     await cmd.download_to_path(firstVideo.url, target);
     const thumbPath = target.replace(/\.[^.]+$/, ".thumb.png");
     if (ctx.ffmpegPath) {
-      await cmd.video_thumbnail_extract(target, thumbPath, ctx.ffmpegPath).catch(() => false);
+      await cmd
+        .video_thumbnail_extract(target, thumbPath, ctx.ffmpegPath)
+        .catch(() => false);
     }
     const meta = buildMetadataRecord(ctx, ctx.iterationBase);
     await cmd.image_metadata_write(target, meta as unknown as ImageMetadata);
@@ -652,7 +524,9 @@ async function downloadAndWrite(ctx: DownloadCtx): Promise<string[]> {
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
     if (!f.url) continue;
-    const declaredExt = String(ctx.settings["output_format"] ?? "").toLowerCase();
+    const declaredExt = String(
+      ctx.settings["output_format"] ?? "",
+    ).toLowerCase();
     const ext = declaredExt || extFromUrl(f.url) || "png";
     const filename = resolveFilename(ctx, i + 1, ext, multipleFiles);
     const target = joinPath(ctx.versionDir, filename);
@@ -674,11 +548,10 @@ function buildMetadataRecord(ctx: DownloadCtx, iterationIndex: number) {
     if (ctx.node.batch_field && k === ctx.node.batch_field) continue;
     cleaned[k] = v;
   }
-  const combined =
-    [ctx.sequencePrompt, ctx.shotPrompt]
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
-      .join("\n\n");
+  const combined = [ctx.sequencePrompt, ctx.shotPrompt]
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .join("\n\n");
   return {
     model: ctx.node.name,
     modelId: ctx.node.id,
@@ -719,18 +592,25 @@ function resolveFilename(
   const seed = ctx.settings["seed"];
   const seedToken = seed !== undefined && seed !== -1 ? String(seed) : "rnd";
 
-  const promptToken = [ctx.sequencePrompt, ctx.shotPrompt]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 20) || "noprompt";
+  const promptToken =
+    [ctx.sequencePrompt, ctx.shotPrompt]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 20) || "noprompt";
 
   const hasIter = tpl.includes("<iter>");
   let base = tpl
-    .replace(/<date>/g, `${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}`)
-    .replace(/<time>/g, `${p2(now.getHours())}${p2(now.getMinutes())}${p2(now.getSeconds())}_${ms}`)
+    .replace(
+      /<date>/g,
+      `${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}`,
+    )
+    .replace(
+      /<time>/g,
+      `${p2(now.getHours())}${p2(now.getMinutes())}${p2(now.getSeconds())}_${ms}`,
+    )
     .replace(/<sequence>/g, safeName(seqName))
     .replace(/<shot>/g, safeName(shotName))
     .replace(/<model>/g, safeName(ctx.node.name))
@@ -756,74 +636,4 @@ function extFromUrl(url: string): string | null {
   } catch {
     return null;
   }
-}
-
-// Pulls every diagnostically useful field out of arbitrary SDK errors. fal's
-// ApiError uses `body.detail`, replicate's errors carry status + response,
-// raw fetch failures carry only message — without this, a "500" looks like
-// the bare string "HTTP 500" with no hint of which call or what the server said.
-function extractErrorMessage(e: unknown): string {
-  if (e == null) return "Unknown error";
-  if (typeof e === "string") return e;
-
-  const err = e as Record<string, unknown> & {
-    name?: string;
-    message?: string;
-    status?: number;
-    statusCode?: number;
-    cause?: unknown;
-    body?: unknown;
-    response?: unknown;
-  };
-
-  const parts: string[] = [];
-
-  const status =
-    typeof err.status === "number"
-      ? err.status
-      : typeof err.statusCode === "number"
-      ? err.statusCode
-      : undefined;
-  if (status) parts.push(`HTTP ${status}`);
-
-  const stringify = (v: unknown): string =>
-    typeof v === "string" ? v : (() => {
-      try {
-        return JSON.stringify(v, null, 2);
-      } catch {
-        return String(v);
-      }
-    })();
-
-  // Walk a handful of common shapes. First hit wins per category.
-  const body = err.body as Record<string, unknown> | string | undefined;
-  if (typeof body === "string" && body.length > 0) {
-    parts.push(body);
-  } else if (body && typeof body === "object") {
-    const detail = (body as Record<string, unknown>).detail;
-    const error = (body as Record<string, unknown>).error;
-    const message = (body as Record<string, unknown>).message;
-    const title = (body as Record<string, unknown>).title;
-    if (detail !== undefined) parts.push(stringify(detail));
-    else if (error !== undefined) parts.push(stringify(error));
-    else if (message !== undefined) parts.push(stringify(message));
-    else if (title !== undefined) parts.push(stringify(title));
-    else parts.push(stringify(body));
-  }
-
-  const response = err.response as
-    | { data?: unknown; statusText?: string }
-    | undefined;
-  if (response) {
-    if (response.data !== undefined && parts.length <= 1) {
-      parts.push(stringify(response.data));
-    }
-    if (response.statusText) parts.push(response.statusText);
-  }
-
-  if (parts.length === 0 && err.message) parts.push(String(err.message));
-  if (parts.length === 0 && err.cause) parts.push(stringify(err.cause));
-  if (parts.length === 0) parts.push(String(e));
-
-  return parts.join(" — ");
 }
