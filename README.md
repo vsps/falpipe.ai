@@ -87,8 +87,7 @@ On first launch the app creates `%APPDATA%\falPipe\` (Windows) or the equivalent
 
 ## Some additional notes
 
-By default an SRC folder is created inside the sequence folder and can be seen from any shot. You have the option of creating per-shot SRC folders to keep references confined to individual shots instead.
-Adding images to the reference panel and then switching shots will resave those refs within the new shot if per shot references are enabled.
+All images used as references in a prompt get saved to the \<shot\>/SRC folder. To place files into the \<sequence\>/SRC folder you either need to manually copy them there or RMB -> copy to SEQ/SRC.
 
 The trace button is a quick way to see which images were used as references to create a particular generation.
 

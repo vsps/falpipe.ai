@@ -351,11 +351,15 @@ pub fn version_create_next(shot_path: String) -> AppResult<String> {
 }
 
 #[tauri::command]
-pub fn reveal_in_explorer(app: tauri::AppHandle, path: String) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt;
-    app.opener()
-        .reveal_item_in_dir(path)
-        .map_err(|e| AppError::Msg(e.to_string()))
+pub fn reveal_in_explorer(path: String) -> AppResult<()> {
+    // Use explorer /select directly to avoid canonicalize() turning mapped
+    // drive letters (Z:\...) into \\?\UNC\... paths that Explorer rejects.
+    let native = path.replace('/', "\\");
+    std::process::Command::new("explorer")
+        .arg(format!("/select,\"{native}\""))
+        .spawn()
+        .map_err(|e| AppError::Msg(e.to_string()))?;
+    Ok(())
 }
 
 #[tauri::command]
