@@ -61,8 +61,9 @@ pnpm tauri dev       # run
 pnpm tauri build     # produce an installer in src-tauri/target/release/bundle
 ```
 
-### A test build can be found here (WINDOWS ONLY): https://github.com/vsps/falpipe.ai/releases
-
+### A Windows installer can be found here: https://github.com/vsps/falpipe.ai/releases
+however I do update the source often and don't always build so I would recommend building your own from source as according to the instructions above.
+It's not that hard at all!
 
 ## Configure
 
