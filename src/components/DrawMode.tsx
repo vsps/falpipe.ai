@@ -228,11 +228,26 @@ export function DrawMode({ image, onSave, onCancel }: Props) {
       const nh = img.naturalHeight;
       const scale = nw / imgBounds.width;
 
+      // Load via Blob URL to avoid canvas tainting from the Tauri asset protocol.
+      const { readFile } = await import("@tauri-apps/plugin-fs");
+      const ext = image.path.split(".").pop()?.toLowerCase() ?? "png";
+      const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg"
+        : ext === "webp" ? "image/webp" : "image/png";
+      const bytes = await readFile(image.path);
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      const cleanImg = new Image();
+      cleanImg.src = blobUrl;
+      await new Promise<void>((res, rej) => {
+        cleanImg.onload = () => res();
+        cleanImg.onerror = () => rej(new Error("image load failed"));
+      });
+
       const offscreen = document.createElement("canvas");
       offscreen.width = nw;
       offscreen.height = nh;
       const ctx = offscreen.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, nw, nh);
+      ctx.drawImage(cleanImg, 0, 0, nw, nh);
+      URL.revokeObjectURL(blobUrl);
 
       // Replay strokes at natural resolution
       for (const s of strokesRef.current) {
