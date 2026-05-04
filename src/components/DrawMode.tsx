@@ -184,8 +184,8 @@ export function DrawMode({ image, onSave, onCancel }: Props) {
     const pt = toCanvas(e);
     cursorPosRef.current = pt;
     if (!drawingRef.current) {
-      // just update indicator
-      brushPosRef.current = brushPosRef.current ?? pt;
+      // Brush follows cursor instantly when idle; lag only applies mid-stroke
+      brushPosRef.current = pt;
       render();
     }
   };
@@ -280,6 +280,7 @@ export function DrawMode({ image, onSave, onCancel }: Props) {
     <div
       className="fixed inset-0 z-50 bg-black/90 flex flex-col"
       onMouseUp={onMouseUp}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Image + canvas area */}
       <div className="flex-1 min-h-0 flex items-center justify-center relative overflow-hidden">
