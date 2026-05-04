@@ -1,0 +1,430 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { GalleryImage } from "../lib/types";
+import { fileSrc } from "../lib/assets";
+import { cmd } from "../lib/tauri";
+import { useSessionStore } from "../stores/sessionStore";
+import { showMessage } from "../lib/dialog";
+import { dirname, basename } from "../lib/paths";
+
+type Stroke = {
+  color: string;
+  size: number;
+  erase: boolean;
+  points: [number, number][];
+};
+
+const COLORS = [
+  "#ffffff", "#000000", "#ef4444", "#f97316",
+  "#eab308", "#22c55e", "#06b6d4", "#3b82f6",
+  "#a855f7", "#ec4899",
+];
+
+const SIZES = [6, 16, 32];
+
+type Props = {
+  image: GalleryImage;
+  onSave: (newPath: string) => void;
+  onCancel: () => void;
+};
+
+export function DrawMode({ image, onSave, onCancel }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const strokesRef = useRef<Stroke[]>([]);
+  const currentStrokeRef = useRef<Stroke | null>(null);
+  const drawingRef = useRef(false);
+
+  // Lazy brush state
+  const brushPosRef = useRef<[number, number] | null>(null);
+  const cursorPosRef = useRef<[number, number] | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const [color, setColor] = useState(COLORS[2]);
+  const [size, setSize] = useState(SIZES[1]);
+  const [erase, setErase] = useState(false);
+  const [smoothing, setSmoothing] = useState(30);
+  const [saving, setSaving] = useState(false);
+  const [imgReady, setImgReady] = useState(false);
+  const [imgBounds, setImgBounds] = useState<DOMRect | null>(null);
+
+  const session = useSessionStore();
+
+  // Update canvas bounds when image loads or window resizes
+  const updateBounds = useCallback(() => {
+    const el = imgRef.current;
+    if (!el) return;
+    setImgBounds(el.getBoundingClientRect());
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("resize", updateBounds);
+    return () => window.removeEventListener("resize", updateBounds);
+  }, [updateBounds]);
+
+  // Render all strokes onto the canvas
+  const render = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !imgBounds) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const s of [
+      ...strokesRef.current,
+      ...(currentStrokeRef.current ? [currentStrokeRef.current] : []),
+    ]) {
+      if (s.points.length < 2) continue;
+      ctx.save();
+      ctx.globalCompositeOperation = s.erase ? "destination-out" : "source-over";
+      ctx.strokeStyle = s.color;
+      ctx.lineWidth = s.size;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(s.points[0][0], s.points[0][1]);
+      for (let i = 1; i < s.points.length; i++) {
+        const [x0, y0] = s.points[i - 1];
+        const [x1, y1] = s.points[i];
+        ctx.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Draw lazy brush indicator
+    const brush = brushPosRef.current;
+    const cursor = cursorPosRef.current;
+    if (brush && cursor) {
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      // Line from brush to cursor
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(brush[0], brush[1]);
+      ctx.lineTo(cursor[0], cursor[1]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Cursor dot
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.beginPath();
+      ctx.arc(cursor[0], cursor[1], 3, 0, Math.PI * 2);
+      ctx.fill();
+      // Brush circle
+      ctx.strokeStyle = erase ? "rgba(255,100,100,0.8)" : color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(brush[0], brush[1], size / 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }, [imgBounds, color, size, erase]);
+
+  // Lazy brush animation loop while drawing
+  const animateBrush = useCallback(() => {
+    const cursor = cursorPosRef.current;
+    const brush = brushPosRef.current;
+    if (!cursor || !brush) return;
+
+    const dx = cursor[0] - brush[0];
+    const dy = cursor[1] - brush[1];
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (smoothing === 0 || dist <= 1) {
+      brushPosRef.current = cursor;
+    } else if (dist > smoothing) {
+      const t = 1 - smoothing / dist;
+      brushPosRef.current = [brush[0] + dx * t, brush[1] + dy * t];
+    }
+
+    const newBrush = brushPosRef.current!;
+    if (drawingRef.current && currentStrokeRef.current) {
+      const pts = currentStrokeRef.current.points;
+      const last = pts[pts.length - 1];
+      if (!last || Math.abs(last[0] - newBrush[0]) > 0.5 || Math.abs(last[1] - newBrush[1]) > 0.5) {
+        pts.push([newBrush[0], newBrush[1]]);
+      }
+    }
+    render();
+    rafRef.current = requestAnimationFrame(animateBrush);
+  }, [smoothing, render]);
+
+  const startBrushLoop = useCallback(() => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(animateBrush);
+  }, [animateBrush]);
+
+  const stopBrushLoop = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
+
+  // Mouse handlers (relative to canvas)
+  const toCanvas = (e: React.MouseEvent): [number, number] => {
+    const canvas = canvasRef.current!;
+    const r = canvas.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  };
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const pt = toCanvas(e);
+    brushPosRef.current = pt;
+    cursorPosRef.current = pt;
+    currentStrokeRef.current = { color, size, erase, points: [pt] };
+    drawingRef.current = true;
+    startBrushLoop();
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    const pt = toCanvas(e);
+    cursorPosRef.current = pt;
+    if (!drawingRef.current) {
+      // just update indicator
+      brushPosRef.current = brushPosRef.current ?? pt;
+      render();
+    }
+  };
+
+  const onMouseUp = () => {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    stopBrushLoop();
+    if (currentStrokeRef.current && currentStrokeRef.current.points.length >= 2) {
+      strokesRef.current.push(currentStrokeRef.current);
+    }
+    currentStrokeRef.current = null;
+    render();
+  };
+
+  const onMouseLeave = () => {
+    cursorPosRef.current = null;
+    if (!drawingRef.current) {
+      brushPosRef.current = null;
+      render();
+    }
+  };
+
+  const undo = () => {
+    strokesRef.current.pop();
+    render();
+  };
+
+  const clear = () => {
+    strokesRef.current = [];
+    render();
+  };
+
+  const save = async () => {
+    const img = imgRef.current;
+    if (!img || !imgBounds) return;
+    setSaving(true);
+    try {
+      const nw = img.naturalWidth;
+      const nh = img.naturalHeight;
+      const scale = nw / imgBounds.width;
+
+      const offscreen = document.createElement("canvas");
+      offscreen.width = nw;
+      offscreen.height = nh;
+      const ctx = offscreen.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, nw, nh);
+
+      // Replay strokes at natural resolution
+      for (const s of strokesRef.current) {
+        if (s.points.length < 2) continue;
+        ctx.save();
+        ctx.globalCompositeOperation = s.erase ? "destination-out" : "source-over";
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.size * scale;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        const scaled = s.points.map(([x, y]) => [x * scale, y * scale] as [number, number]);
+        ctx.moveTo(scaled[0][0], scaled[0][1]);
+        for (let i = 1; i < scaled.length; i++) {
+          const [x0, y0] = scaled[i - 1];
+          const [x1, y1] = scaled[i];
+          ctx.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      const dataUrl = offscreen.toDataURL("image/png");
+      const base64 = dataUrl.split(",")[1];
+
+      const dir = dirname(image.path);
+      const name = basename(image.path).replace(/\.[^.]+$/, "");
+      const savePath = `${dir}/${name}_paint.png`;
+
+      await cmd.save_png_base64(savePath, base64);
+      await session.rescanShot();
+      onSave(savePath);
+    } catch (e) {
+      await showMessage(String(e), { kind: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => () => stopBrushLoop(), [stopBrushLoop]);
+
+  const src = fileSrc(image.path);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+      onMouseUp={onMouseUp}
+    >
+      {/* Image + canvas area */}
+      <div className="flex-1 min-h-0 flex items-center justify-center relative overflow-hidden">
+        <img
+          ref={imgRef}
+          src={src}
+          alt=""
+          draggable={false}
+          className="max-h-full max-w-full object-contain select-none"
+          onLoad={() => {
+            setImgReady(true);
+            updateBounds();
+          }}
+          style={{ userSelect: "none" }}
+        />
+        {imgReady && imgBounds && (
+          <canvas
+            ref={canvasRef}
+            width={imgBounds.width}
+            height={imgBounds.height}
+            className="absolute cursor-crosshair"
+            style={{
+              left: imgBounds.left,
+              top: imgBounds.top,
+              width: imgBounds.width,
+              height: imgBounds.height,
+            }}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseLeave={onMouseLeave}
+          />
+        )}
+      </div>
+
+      {/* Toolbar */}
+      <div
+        className="bg-panel text-text p-2 flex items-center gap-3 flex-wrap"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Colour swatches */}
+        <div className="flex items-center gap-1">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              title={c}
+              onClick={() => { setColor(c); setErase(false); }}
+              className="rounded-full border-2 transition-transform"
+              style={{
+                background: c,
+                width: 18,
+                height: 18,
+                borderColor: !erase && color === c ? "white" : "transparent",
+                transform: !erase && color === c ? "scale(1.25)" : "scale(1)",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Eraser */}
+        <button
+          title="Eraser"
+          onClick={() => setErase(true)}
+          className={`text-xs px-2 py-0.5 border ${erase ? "border-white text-white" : "border-dim text-dim"} hover:border-text hover:text-text`}
+        >
+          eraser
+        </button>
+
+        <div className="w-px h-5 bg-dim" />
+
+        {/* Brush sizes */}
+        <div className="flex items-center gap-1">
+          {SIZES.map((s) => (
+            <button
+              key={s}
+              title={`${s}px`}
+              onClick={() => setSize(s)}
+              className="flex items-center justify-center rounded-full border-2 transition-transform"
+              style={{
+                width: 24,
+                height: 24,
+                borderColor: size === s ? "white" : "transparent",
+              }}
+            >
+              <span
+                className="rounded-full"
+                style={{
+                  width: Math.min(s, 20),
+                  height: Math.min(s, 20),
+                  background: "white",
+                  opacity: size === s ? 1 : 0.4,
+                }}
+              />
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-dim" />
+
+        {/* Smoothing slider */}
+        <label className="flex items-center gap-2 text-xs text-dim">
+          Smooth
+          <input
+            type="range"
+            min={0}
+            max={80}
+            value={smoothing}
+            onChange={(e) => setSmoothing(Number(e.currentTarget.value))}
+            className="w-20 accent-white"
+          />
+          <span className="w-5 text-right">{smoothing}</span>
+        </label>
+
+        <div className="flex-1" />
+
+        {/* Undo / Clear */}
+        <button
+          onClick={undo}
+          className="text-xs px-2 py-0.5 border border-dim text-dim hover:border-text hover:text-text"
+        >
+          undo
+        </button>
+        <button
+          onClick={clear}
+          className="text-xs px-2 py-0.5 border border-dim text-dim hover:border-text hover:text-text"
+        >
+          clear
+        </button>
+
+        <div className="w-px h-5 bg-dim" />
+
+        {/* Save / Cancel */}
+        <button
+          onClick={() => void save()}
+          disabled={saving}
+          className="text-xs px-3 py-0.5 bg-accent text-text hover:opacity-80 disabled:opacity-40"
+        >
+          {saving ? "saving…" : "save"}
+        </button>
+        <button
+          onClick={onCancel}
+          className="text-xs px-2 py-0.5 border border-dim text-dim hover:border-text hover:text-text"
+        >
+          cancel
+        </button>
+      </div>
+    </div>
+  );
+}

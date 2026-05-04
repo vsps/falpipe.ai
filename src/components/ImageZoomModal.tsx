@@ -3,6 +3,7 @@ import type { GalleryImage, ImageMetadata } from "../lib/types";
 import { fileSrc } from "../lib/assets";
 import { IconBtn } from "./IconBtn";
 import { PathContextMenu } from "./PathContextMenu";
+import { DrawMode } from "./DrawMode";
 import { useSessionStore } from "../stores/sessionStore";
 import { cmd } from "../lib/tauri";
 
@@ -26,6 +27,7 @@ export function ImageZoomModal({
   const [fit, setFit] = useState<"fit" | "one">("fit");
   const [meta, setMeta] = useState<ImageMetadata | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [drawMode, setDrawMode] = useState(false);
   const columns = useSessionStore((s) => s.columns);
   const setZoomImage = useSessionStore((s) => s.setZoomImage);
 
@@ -169,11 +171,21 @@ export function ImageZoomModal({
           <IconBtn name="add_photo_alternate" size={20} title="Add to refs" onClick={onAddToRefs} />
           <IconBtn name="copy_all" size={20} title="Reuse settings" onClick={onCopySettings} />
           <IconBtn name="conversion_path" size={20} title="Trace" onClick={onTrace} />
+          {!image.isVideo && (
+            <IconBtn name="edit" size={20} title="Draw / paint" onClick={() => setDrawMode(true)} />
+          )}
           <IconBtn name="delete" size={20} title="Delete" onClick={onDelete} />
           <div className="w-3" />
           <IconBtn name="close" size={24} title="Close (Esc)" onClick={onClose} />
         </div>
       </div>
+      {drawMode && (
+        <DrawMode
+          image={image}
+          onSave={() => setDrawMode(false)}
+          onCancel={() => setDrawMode(false)}
+        />
+      )}
       {menuPos && (
         <PathContextMenu
           x={menuPos.x}

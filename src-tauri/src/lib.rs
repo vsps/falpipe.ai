@@ -30,6 +30,7 @@ pub fn run() {
             commands::session::version_create_next,
             commands::session::ref_copy_to_src,
             commands::session::ref_copy_to_seq_src,
+            commands::session::save_png_base64,
             commands::session::reveal_in_explorer,
             commands::session::sequence_prompt_append,
             commands::session::shot_prompt_append,

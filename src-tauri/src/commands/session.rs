@@ -397,6 +397,20 @@ pub fn ref_copy_to_seq_src(shot_path: String, source_path: String) -> AppResult<
 }
 
 #[tauri::command]
+pub fn save_png_base64(path: String, data_base64: String) -> AppResult<()> {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    let bytes = STANDARD
+        .decode(&data_base64)
+        .map_err(|e| AppError::Msg(format!("base64 decode: {e}")))?;
+    let p = PathBuf::from(&path);
+    if let Some(parent) = p.parent() {
+        ensure_dir(parent)?;
+    }
+    std::fs::write(&p, &bytes)?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn sequence_prompt_append(sequence_path: String, prompt: String) -> AppResult<SequenceSidecar> {
     let root = PathBuf::from(&sequence_path);
     let path = root.join(SEQUENCE_SIDECAR);
