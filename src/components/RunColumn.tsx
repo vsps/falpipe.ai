@@ -33,6 +33,12 @@ export function RunColumn() {
     !srcVersions.includes(targetVersion ?? "") &&
     hasPrompt;
 
+  const canRunPlus =
+    !!currentModel &&
+    !!shotPath &&
+    hasPrompt &&
+    !srcVersions.includes(targetVersion ?? "");
+
   const disabledReason = !currentModel
     ? "Pick a model"
     : !shotPath
@@ -99,11 +105,11 @@ export function RunColumn() {
       </button>
       <button
         title={disabledReason || "Submit + new version"}
-        disabled={!canRun}
+        disabled={!canRunPlus}
         onClick={() => {
           void runIntoNewVersion();
         }}
-        className={canRun ? btn : btnDisabled}
+        className={canRunPlus ? btn : btnDisabled}
       >
         [SUBMIT+]
       </button>
