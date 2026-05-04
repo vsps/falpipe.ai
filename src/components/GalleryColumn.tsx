@@ -10,9 +10,10 @@ type Props = {
   width: number;
   onFolderDelete: () => void;
   onImageAction: (action: ImageAction, imagePath: string) => void;
+  onRefresh?: () => void;
 };
 
-export function GalleryColumn({ column, width, onFolderDelete, onImageAction }: Props) {
+export function GalleryColumn({ column, width, onFolderDelete, onImageAction, onRefresh }: Props) {
   const { targetVersion, setTargetVersion, selectedImagePath, traceActive } = useSessionStore();
 
   const isTarget = targetVersion === column.version;
@@ -32,6 +33,17 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction }: 
         onClick={() => !column.isSrc && setTargetVersion(column.version)}
       >
         <span className="flex-1 truncate">{column.version}</span>
+        {column.isSrc && onRefresh && (
+          <IconBtn
+            name="refresh"
+            size={18}
+            title="Refresh"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRefresh();
+            }}
+          />
+        )}
         {!column.isSrc && (
           <IconBtn
             name="delete"

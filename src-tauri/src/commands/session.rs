@@ -229,7 +229,7 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
             let images = scan_directory_images(&seq_src)?;
             cols.push(GalleryColumn {
                 id: as_str(&seq_src),
-                version: "SEQ SRC".to_string(),
+                version: "SEQUENCE SRC".to_string(),
                 is_src: true,
                 images,
                 timestamp: None,

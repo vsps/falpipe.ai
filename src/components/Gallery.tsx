@@ -149,6 +149,7 @@ export function Gallery() {
                 width={thumbColWidth}
                 onFolderDelete={() => onFolderDelete(c.version)}
                 onImageAction={onImageAction}
+                onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
               />
             ))}
             {session.shotPath && (
