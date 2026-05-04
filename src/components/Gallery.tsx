@@ -128,7 +128,7 @@ export function Gallery() {
   }
 
   return (
-    <div className="flex flex-1 min-h-0 gap-gallery-surface bg-gallery-surface">
+    <div className="flex flex-1 min-h-0 min-w-0 gap-gallery-surface bg-gallery-surface">
       {traceActive && (
         <div className="absolute top-[80px] right-2 z-10 bg-warn/90 text-text px-2 py-1 text-xs font-mono">
           tracing · {traceActive.traceSet.size} images ·{" "}
