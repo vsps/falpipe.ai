@@ -147,15 +147,23 @@ async function copyImageToClipboard(path: string): Promise<void> {
     });
     return;
   }
-  const { fileSrc } = await import("./assets");
-  const url = fileSrc(path);
-  const img = new Image();
-  img.src = url;
   try {
+    const { readFile } = await import("@tauri-apps/plugin-fs");
+    const mime =
+      ext === "jpg" || ext === "jpeg"
+        ? "image/jpeg"
+        : ext === "webp"
+          ? "image/webp"
+          : "image/png";
+    const bytes = await readFile(path);
+    const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    const img = new Image();
+    img.src = blobUrl;
     await new Promise<void>((res, rej) => {
       img.onload = () => res();
       img.onerror = () => rej(new Error("image load failed"));
     });
+    URL.revokeObjectURL(blobUrl);
     const canvas = document.createElement("canvas");
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;

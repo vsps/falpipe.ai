@@ -1011,6 +1011,7 @@ dependencies = [
 name = "falpipe"
 version = "0.1.3"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "dirs 5.0.1",
  "futures-util",

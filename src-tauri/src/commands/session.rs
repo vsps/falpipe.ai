@@ -356,7 +356,7 @@ pub fn reveal_in_explorer(path: String) -> AppResult<()> {
     // drive letters (Z:\...) into \\?\UNC\... paths that Explorer rejects.
     let native = path.replace('/', "\\");
     std::process::Command::new("explorer")
-        .arg(format!("/select,\"{native}\""))
+        .arg(format!("/select,{native}"))
         .spawn()
         .map_err(|e| AppError::Msg(e.to_string()))?;
     Ok(())
