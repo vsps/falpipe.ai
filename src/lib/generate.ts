@@ -188,18 +188,14 @@ export async function enqueueGeneration(): Promise<void> {
       /* swallow — history append failures are non-fatal */
     }
   }
-  let lastShotSidecar = null;
-  for (const p of spec.shotPrompts) {
-    const trimmed = p.trim();
-    if (trimmed.length === 0) continue;
+  const nonEmptyPanels = spec.shotPrompts.map((p) => p.trim()).filter((p) => p.length > 0);
+  if (nonEmptyPanels.length > 0) {
     try {
-      lastShotSidecar = await cmd.shot_prompt_append(spec.shotPath, trimmed);
+      const sidecar = await cmd.shot_prompts_append(spec.shotPath, nonEmptyPanels);
+      useSessionStore.getState().hydrateShotSidecar(sidecar);
     } catch {
       /* swallow */
     }
-  }
-  if (lastShotSidecar) {
-    useSessionStore.getState().hydrateShotSidecar(lastShotSidecar);
   }
 
   void pumpQueue();
@@ -335,6 +331,7 @@ async function runJob(spec: JobSpec): Promise<void> {
         node: spec.node,
         sequencePrompt: spec.sequencePrompt,
         shotPrompt: spec.shotPrompt,
+        shotPrompts: spec.shotPrompts,
         settings: spec.settings,
         refs: uploaded,
         shotPath: spec.shotPath,
@@ -370,6 +367,7 @@ async function runJob(spec: JobSpec): Promise<void> {
           node: spec.node,
           sequencePrompt: spec.sequencePrompt,
           shotPrompt: spec.shotPrompt,
+          shotPrompts: spec.shotPrompts,
           settings: spec.settings,
           refs: uploaded,
           shotPath: spec.shotPath,
@@ -391,6 +389,7 @@ async function runJob(spec: JobSpec): Promise<void> {
     }
 
     if (!controller.signal.aborted) {
+      playDing();
       gen.updateJob(spec.id, {
         status: "done",
         progressMessage: `Generated ${totalOutputs.length} file(s)`,
@@ -486,6 +485,7 @@ type DownloadCtx = {
   node: ModelNode;
   sequencePrompt: string;
   shotPrompt: string;
+  shotPrompts: string[];
   settings: Record<string, unknown>;
   refs: UploadedRef[];
   shotPath: string;
@@ -558,6 +558,7 @@ function buildMetadataRecord(ctx: DownloadCtx, iterationIndex: number) {
     endpoint: ctx.node.endpoint,
     sequencePrompt: ctx.sequencePrompt,
     shotPrompt: ctx.shotPrompt,
+    shotPrompts: ctx.shotPrompts,
     combinedPrompt: combined,
     settings: cleaned,
     refs: ctx.refs.map((r) => ({
@@ -569,6 +570,25 @@ function buildMetadataRecord(ctx: DownloadCtx, iterationIndex: number) {
     timestamp: new Date().toISOString(),
     providerResponse: ctx.out.raw,
   };
+}
+
+function playDing() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+    osc.onended = () => void ctx.close();
+  } catch {
+    // audio unavailable
+  }
 }
 
 // Sanitize a string for use in a filename: collapse unsafe chars to underscore.

@@ -226,6 +226,9 @@ impl Default for AppState {
 pub struct PromptEntry {
     pub timestamp: String,
     pub prompt: String,
+    /// Each sub-prompt panel saved separately. Absent on legacy single-prompt entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompts: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

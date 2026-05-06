@@ -47,7 +47,11 @@ export async function copySettingsFromMetadata(meta: ImageMetadata): Promise<{
   // Metadata stores the combined shot prompt as one string; recall lands it
   // in a single box (the multi-box split is not preserved in metadata).
   gen.setSequencePrompt(meta.sequencePrompt ?? "");
-  gen.setShotPrompts([meta.shotPrompt ?? meta.prompt ?? ""]);
+  if (meta.shotPrompts && meta.shotPrompts.length > 0) {
+    gen.setShotPrompts(meta.shotPrompts);
+  } else {
+    gen.setShotPrompts([meta.shotPrompt ?? meta.prompt ?? ""]);
+  }
 
   // Settings
   const settings = meta.settings || {};
@@ -73,8 +77,11 @@ export async function copySettingsFromMetadata(meta: ImageMetadata): Promise<{
 /** Apply only the prompt fields from a sidecar (shot prompt gets the value). */
 export function copyPromptFromMetadata(meta: ImageMetadata): void {
   const gen = useGenerationStore.getState();
-  const shot = meta.shotPrompt ?? meta.prompt ?? "";
-  gen.setShotPrompts([shot]);
+  if (meta.shotPrompts && meta.shotPrompts.length > 0) {
+    gen.setShotPrompts(meta.shotPrompts);
+  } else {
+    gen.setShotPrompts([meta.shotPrompt ?? meta.prompt ?? ""]);
+  }
 }
 
 /** Compute ancestor set for a trace: {image} ∪ {all ancestors via sidecar.refs}. */

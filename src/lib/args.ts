@@ -11,6 +11,10 @@ export function buildArgs(
 
   for (const [k, v] of Object.entries(settings)) {
     if (k === "seed" && v === -1) continue;
+    if (k === "image_size" && typeof v === "string") {
+      const m = v.match(/^(\d+)x(\d+)$/);
+      if (m) { args[k] = { width: Number(m[1]), height: Number(m[2]) }; continue; }
+    }
     args[k] = v;
   }
 

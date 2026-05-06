@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import type { GalleryImage } from "../lib/types";
 import { GalleryColumn } from "./GalleryColumn";
 import { ImageZoomModal } from "./ImageZoomModal";
@@ -142,15 +142,24 @@ export function Gallery() {
           <div className="text-sm text-dim p-4">Open a shot to see its versions.</div>
         ) : (
           <>
-            {columns.map((c) => (
-              <GalleryColumn
-                key={c.version}
-                column={c}
-                width={thumbColWidth}
-                onFolderDelete={() => onFolderDelete(c.version)}
-                onImageAction={onImageAction}
-                onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
-              />
+            {columns.map((c, i) => (
+              <React.Fragment key={c.version}>
+                <GalleryColumn
+                  column={c}
+                  width={thumbColWidth}
+                  onFolderDelete={() => onFolderDelete(c.version)}
+                  onImageAction={onImageAction}
+                  onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
+                />
+                {i < columns.length - 1 && (
+                  <ResizeBar
+                    orientation="vertical"
+                    value={thumbColWidth}
+                    onChange={setThumbColWidth}
+                    grow="right"
+                  />
+                )}
+              </React.Fragment>
             ))}
             {session.shotPath && (
               <button
@@ -161,12 +170,7 @@ export function Gallery() {
                 <IconBtn name="add" size={22} />
               </button>
             )}
-            <ResizeBar
-              orientation="vertical"
-              value={thumbColWidth}
-              onChange={setThumbColWidth}
-              grow="right"
-            />
+            <div className="shrink-0 w-[200px]" />
           </>
         )}
       </div>

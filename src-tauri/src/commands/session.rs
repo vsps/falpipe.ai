@@ -426,6 +426,7 @@ pub fn sequence_prompt_append(sequence_path: String, prompt: String) -> AppResul
         sidecar.prompt_history.push(PromptEntry {
             timestamp: Utc::now().to_rfc3339(),
             prompt,
+            prompts: None,
         });
         write_sidecar_atomic(&path, &sidecar)?;
     }
@@ -448,6 +449,31 @@ pub fn shot_prompt_append(shot_path: String, prompt: String) -> AppResult<ShotSi
         sidecar.prompt_history.push(PromptEntry {
             timestamp: Utc::now().to_rfc3339(),
             prompt,
+            prompts: None,
+        });
+        write_sidecar_atomic(&path, &sidecar)?;
+    }
+    Ok(sidecar)
+}
+
+#[tauri::command]
+pub fn shot_prompts_append(shot_path: String, prompts: Vec<String>) -> AppResult<ShotSidecar> {
+    let root = PathBuf::from(&shot_path);
+    let path = root.join(SHOT_SIDECAR);
+    let mut sidecar: ShotSidecar = read_sidecar(&path)?;
+    if sidecar.name.is_empty() {
+        sidecar.name = root
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+    }
+    let combined = prompts.join("\n\n");
+    if sidecar.prompt_history.last().map(|e| e.prompt.as_str()) != Some(combined.as_str()) {
+        sidecar.prompt_history.push(PromptEntry {
+            timestamp: Utc::now().to_rfc3339(),
+            prompt: combined,
+            prompts: Some(prompts),
         });
         write_sidecar_atomic(&path, &sidecar)?;
     }

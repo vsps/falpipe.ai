@@ -126,6 +126,8 @@ export type GalleryColumn = {
 export type PromptEntry = {
   timestamp: string;
   prompt: string;
+  /** Individual sub-prompt panels. Absent on legacy single-prompt entries. */
+  prompts?: string[];
 };
 
 export type PromptHistoryChannel = {
@@ -222,6 +224,7 @@ export type ImageMetadata = {
   endpoint: string;
   sequencePrompt?: string;
   shotPrompt?: string;
+  shotPrompts?: string[];
   combinedPrompt?: string;
   // Back-compat with old single-prompt sidecars.
   prompt?: string;

@@ -19,7 +19,7 @@ const COLORS = [
   "#a855f7", "#ec4899",
 ];
 
-const SIZES = [6, 16, 32];
+const SIZES = [4, 8, 16, 28, 44, 64];
 
 type Props = {
   image: GalleryImage;

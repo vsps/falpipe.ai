@@ -34,6 +34,7 @@ pub fn run() {
             commands::session::reveal_in_explorer,
             commands::session::sequence_prompt_append,
             commands::session::shot_prompt_append,
+            commands::session::shot_prompts_append,
             commands::metadata::image_metadata_read,
             commands::metadata::image_metadata_write,
             commands::metadata::image_delete,

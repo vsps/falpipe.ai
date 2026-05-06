@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { IconBtn } from "./IconBtn";
-import type { PromptEntry } from "../lib/types";
 
 type Scope = "sequence" | "shot";
 
@@ -91,38 +90,85 @@ function SequencePromptColumn({ title }: { title: string }) {
   );
 }
 
-// ---------- Shot: N textareas, per-box cursors over a shared history ----------
+// ---------- Shot: N textareas, column-level cursor over grouped history ----------
 
 function ShotPromptColumn({ title }: { title: string }) {
-  const shotPrompts = useGenerationStore((s) => s.shotPrompts);
-  const setShotPromptAt = useGenerationStore((s) => s.setShotPromptAt);
-  const addShotPromptAfter = useGenerationStore((s) => s.addShotPromptAfter);
-  const removeShotPromptAt = useGenerationStore((s) => s.removeShotPromptAt);
+  const gen = useGenerationStore();
   const entries = useSessionStore((s) => s.shotHistory.entries);
+  const [cursor, setCursor] = useState(entries.length);
+
+  // After a submit (entries grow), snap back to live.
+  useEffect(() => {
+    setCursor(entries.length);
+  }, [entries.length]);
+
+  const safeCursor = Math.min(cursor, entries.length);
+  const atLive = safeCursor >= entries.length;
+  const histEntry = atLive ? null : entries[safeCursor];
+
+  // Historical entries now carry a `prompts` array of sub-prompts.
+  // Fall back to a single-element array wrapping `prompt` for legacy entries.
+  const displayedPrompts: string[] = atLive
+    ? gen.shotPrompts
+    : histEntry?.prompts ?? [histEntry?.prompt ?? ""];
+
+  const canGoBack = safeCursor > 0 && entries.length > 0;
+  const canGoFwd = safeCursor < entries.length;
 
   return (
     <div className="bg-surface p-prompt-column text-text w-[300px] flex flex-col gap-prompt-column-gap shrink-0 min-h-0">
       <div className="flex items-center text-sm gap-[4px] font-semibold">
         <span>{title}</span>
         {entries.length > 0 && (
-          <span className="text-xs opacity-60 font-mono">{entries.length}</span>
+          <span className="text-xs opacity-60 font-mono">
+            {atLive ? entries.length : `${safeCursor + 1}/${entries.length}`}
+          </span>
         )}
+        <div className="flex-1" />
+        <button
+          className="text-xs opacity-50 hover:opacity-100 px-1"
+          title="Clear all shot prompts"
+          onClick={() => gen.setShotPrompts([""])}
+        >
+          clear
+        </button>
+        <IconBtn
+          name="keyboard_arrow_left"
+          size={18}
+          title={histEntry ? `Older · ${histEntry.timestamp}` : "Older"}
+          onClick={() => setCursor((c) => Math.max(0, c - 1))}
+          disabled={!canGoBack}
+        />
+        <IconBtn
+          name="keyboard_arrow_right"
+          size={18}
+          title="Newer / live"
+          onClick={() => setCursor((c) => Math.min(entries.length, c + 1))}
+          disabled={!canGoFwd}
+        />
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col gap-prompt-column-gap overflow-y-auto thin-scroll pr-[6px]">
-        {shotPrompts.map((value, idx) => (
+        {displayedPrompts.map((value, idx) => (
           <ShotPromptBox
             key={idx}
             index={idx}
             value={value}
-            entries={entries}
+            readOnly={!atLive}
             isFirst={idx === 0}
-            onChange={(v) => setShotPromptAt(idx, v)}
-            onAdd={() => addShotPromptAfter(idx)}
-            onRemove={() => removeShotPromptAt(idx)}
+            onChange={(v) => gen.setShotPromptAt(idx, v)}
+            onAdd={() => gen.addShotPromptAfter(idx)}
+            onRemove={() => gen.removeShotPromptAt(idx)}
+            onFocusWhenReadOnly={() => setCursor(entries.length)}
           />
         ))}
       </div>
+
+      {histEntry && (
+        <div className="text-xs opacity-60 font-mono truncate" title={histEntry.timestamp}>
+          {new Date(histEntry.timestamp).toLocaleString()}
+        </div>
+      )}
     </div>
   );
 }
@@ -130,88 +176,41 @@ function ShotPromptColumn({ title }: { title: string }) {
 type ShotPromptBoxProps = {
   index: number;
   value: string;
-  entries: PromptEntry[];
+  readOnly: boolean;
   isFirst: boolean;
   onChange: (v: string) => void;
   onAdd: () => void;
   onRemove: () => void;
+  onFocusWhenReadOnly: () => void;
 };
 
-function ShotPromptBox({ index, value, entries, isFirst, onChange, onAdd, onRemove }: ShotPromptBoxProps) {
-  // Per-box cursor over the shared history. `entries.length` means "live"
-  // (showing the editable value). Out-of-range cursors are clamped on render.
-  const [cursor, setCursor] = useState<number>(entries.length);
-
-  // After a submit (entries grow), snap each box back to live so the user sees
-  // the editable value rather than a stale historical entry.
-  useEffect(() => {
-    setCursor(entries.length);
-  }, [entries.length]);
-
-  const safeCursor = Math.min(cursor, entries.length);
-  const atLive = safeCursor >= entries.length;
-  const displayed = atLive ? value : entries[safeCursor]?.prompt ?? "";
-  const readOnly = !atLive;
-  const entry = atLive ? null : entries[safeCursor];
-
-  const canGoBack = safeCursor > 0 && entries.length > 0;
-  const canGoFwd = safeCursor < entries.length;
-
+function ShotPromptBox({ index, value, readOnly, isFirst, onChange, onAdd, onRemove, onFocusWhenReadOnly }: ShotPromptBoxProps) {
   return (
     <div className="flex flex-col gap-[4px]">
       <div className="flex items-center gap-[4px] text-xs opacity-80">
         <span className="font-mono">#{index + 1}</span>
-        {!atLive && (
-          <span className="text-xs opacity-60 font-mono">
-            {safeCursor + 1}/{entries.length}
-          </span>
-        )}
         <div className="flex-1" />
-        <IconBtn
-          name="keyboard_arrow_left"
-          size={16}
-          title={entry ? `Older · ${entry.timestamp}` : "Older"}
-          onClick={() => setCursor((c) => Math.max(0, c - 1))}
-          disabled={!canGoBack}
-        />
-        <IconBtn
-          name="keyboard_arrow_right"
-          size={16}
-          title="Newer / live"
-          onClick={() => setCursor((c) => Math.min(entries.length, c + 1))}
-          disabled={!canGoFwd}
-        />
-        <IconBtn name="add" size={16} title="Add prompt below" onClick={onAdd} />
-        {!isFirst && <IconBtn name="remove" size={16} title="Remove this prompt" onClick={onRemove} />}
+        {!readOnly && (
+          <>
+            <IconBtn name="add" size={16} title="Add prompt below" onClick={onAdd} />
+            {!isFirst && <IconBtn name="remove" size={16} title="Remove this prompt" onClick={onRemove} />}
+          </>
+        )}
       </div>
 
       <textarea
-        value={displayed}
+        value={value}
         readOnly={readOnly}
-        onFocus={() => {
-          if (readOnly) setCursor(entries.length);
-        }}
+        onFocus={() => { if (readOnly) onFocusWhenReadOnly(); }}
         onChange={(e) => onChange(e.currentTarget.value)}
         onKeyDown={(e) => {
-          if (e.altKey && e.key === "ArrowLeft") {
-            e.preventDefault();
-            setCursor((c) => Math.max(0, c - 1));
-          } else if (e.altKey && e.key === "ArrowRight") {
-            e.preventDefault();
-            setCursor((c) => Math.min(entries.length, c + 1));
-          }
+          if (e.altKey && e.key === "ArrowLeft") { e.preventDefault(); onFocusWhenReadOnly(); }
         }}
         placeholder={isFirst ? "Shot prompt" : "Additional shot prompt"}
         className={`min-h-[120px] w-full resize-none bg-inset text-text p-prompt-panel outline-none ${
           readOnly ? "opacity-70 cursor-text" : ""
         }`}
       />
-
-      {entry && (
-        <div className="text-xs opacity-60 font-mono truncate" title={entry.timestamp}>
-          {new Date(entry.timestamp).toLocaleString()}
-        </div>
-      )}
     </div>
   );
 }

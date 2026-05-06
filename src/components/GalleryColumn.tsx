@@ -15,6 +15,7 @@ type Props = {
 
 export function GalleryColumn({ column, width, onFolderDelete, onImageAction, onRefresh }: Props) {
   const { targetVersion, setTargetVersion, selectedImagePath, traceActive } = useSessionStore();
+  const twoCol = width > 220;
 
   const isTarget = targetVersion === column.version;
   const headerClass = isTarget
@@ -56,7 +57,7 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction, on
           />
         )}
       </div>
-      <div className="flex-1 min-h-0 flex flex-col gap-gallery-column-gap overflow-y-auto thin-scroll pr-[3px]">
+      <div className={`flex-1 min-h-0 overflow-y-auto thin-scroll pr-[3px] ${twoCol ? "grid grid-cols-2 gap-gallery-column-gap content-start" : "flex flex-col gap-gallery-column-gap"}`}>
         {column.images.map((img) => {
           const inTrace = traceActive ? traceActive.traceSet.has(img.path) : true;
           return (
@@ -76,7 +77,7 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction, on
           );
         })}
         {column.images.length === 0 && (
-          <div className="text-xs text-dim text-center py-2">
+          <div className={`text-xs text-dim text-center py-2${twoCol ? " col-span-2" : ""}`}>
             {column.isSrc ? "No refs" : "Empty"}
           </div>
         )}

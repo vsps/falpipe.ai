@@ -34,7 +34,7 @@ const LABELS: Record<AvailableAction, string> = {
   copy_path: "Copy path",
   copy_image: "Copy image",
   copy_prompt: "Copy prompt",
-  copy_settings: "Reuse settings",
+  copy_settings: "Reuse prompt",
   trace: "Trace origins",
   zoom: "Zoom",
   refresh: "Refresh",

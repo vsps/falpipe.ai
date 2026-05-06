@@ -4,6 +4,7 @@ import { fileSrc } from "../lib/assets";
 import { IconBtn } from "./IconBtn";
 import { PathContextMenu } from "./PathContextMenu";
 import { DrawMode } from "./DrawMode";
+import { CropMode } from "./CropMode";
 import { useSessionStore } from "../stores/sessionStore";
 import { cmd } from "../lib/tauri";
 
@@ -28,6 +29,7 @@ export function ImageZoomModal({
   const [meta, setMeta] = useState<ImageMetadata | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [drawMode, setDrawMode] = useState(false);
+  const [cropMode, setCropMode] = useState(false);
   const columns = useSessionStore((s) => s.columns);
   const setZoomImage = useSessionStore((s) => s.setZoomImage);
 
@@ -169,8 +171,11 @@ export function ImageZoomModal({
         </div>
         <div className="flex items-center gap-1">
           <IconBtn name="add_photo_alternate" size={20} title="Add to refs" onClick={onAddToRefs} />
-          <IconBtn name="copy_all" size={20} title="Reuse settings" onClick={onCopySettings} />
+          <IconBtn name="copy_all" size={20} title="Reuse prompt" onClick={onCopySettings} />
           <IconBtn name="conversion_path" size={20} title="Trace" onClick={onTrace} />
+          {!image.isVideo && (
+            <IconBtn name="crop" size={20} title="Crop" onClick={() => setCropMode(true)} />
+          )}
           {!image.isVideo && (
             <IconBtn name="edit" size={20} title="Draw / paint" onClick={() => setDrawMode(true)} />
           )}
@@ -184,6 +189,13 @@ export function ImageZoomModal({
           image={image}
           onSave={() => setDrawMode(false)}
           onCancel={() => setDrawMode(false)}
+        />
+      )}
+      {cropMode && (
+        <CropMode
+          image={image}
+          onSave={() => setCropMode(false)}
+          onCancel={() => setCropMode(false)}
         />
       )}
       {menuPos && (

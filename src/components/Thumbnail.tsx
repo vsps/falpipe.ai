@@ -113,7 +113,7 @@ export function Thumbnail({
       >
         <IconBtn name="zoom_in" size={16} title="Zoom" onClick={onZoom} />
         <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
-        <IconBtn name="copy_all" size={16} title="Reuse settings" onClick={onCopySettings} />
+        <IconBtn name="copy_all" size={16} title="Reuse prompt" onClick={onCopySettings} />
         <IconBtn name="conversion_path" size={16} title="Trace" onClick={onTrace} />
       </div>
 
