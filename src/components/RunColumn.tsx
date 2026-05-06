@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { cancelAllGenerations, enqueueGeneration } from "../lib/generate";
+import { playSound } from "../lib/audio";
 import { showMessage } from "../lib/dialog";
 import { basename } from "../lib/paths";
 
@@ -97,6 +98,7 @@ export function RunColumn() {
         title={disabledReason || "Submit"}
         disabled={!canRun}
         onClick={() => {
+          playSound("swoosh");
           void enqueueGeneration();
         }}
         className={canRun ? btn : btnDisabled}
@@ -107,6 +109,7 @@ export function RunColumn() {
         title={disabledReason || "Submit + new version"}
         disabled={!canRunPlus}
         onClick={() => {
+          playSound("swoosh");
           void runIntoNewVersion();
         }}
         className={canRunPlus ? btn : btnDisabled}

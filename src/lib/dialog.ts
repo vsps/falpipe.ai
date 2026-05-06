@@ -1,4 +1,5 @@
 import { open, save, message, confirm } from "@tauri-apps/plugin-dialog";
+import { playSound } from "./audio";
 
 export async function pickDirectory(title: string, defaultPath?: string): Promise<string | null> {
   const res = await open({ directory: true, multiple: false, title, defaultPath });
@@ -35,6 +36,7 @@ export async function pickSaveFile(
 }
 
 export async function showMessage(text: string, opts?: { title?: string; kind?: "info" | "warning" | "error" }) {
+  if (opts?.kind === "error") playSound("buzz");
   await message(text, { title: opts?.title, kind: opts?.kind });
 }
 

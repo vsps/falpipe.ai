@@ -18,6 +18,7 @@ import { getProvider } from "./providers";
 import type { ProviderOutput, ProviderProgress } from "./providers";
 import { extractErrorMessage } from "./errors";
 import { buildArgs, guessContentType } from "./args";
+import { playSound } from "./audio";
 // Per-job AbortController. Keyed by job id so cancellation can target one or all.
 const abortControllers = new Map<string, AbortController>();
 
@@ -389,7 +390,7 @@ async function runJob(spec: JobSpec): Promise<void> {
     }
 
     if (!controller.signal.aborted) {
-      playDing();
+      playSound("bell");
       gen.updateJob(spec.id, {
         status: "done",
         progressMessage: `Generated ${totalOutputs.length} file(s)`,
@@ -411,6 +412,7 @@ async function runJob(spec: JobSpec): Promise<void> {
       // Always dump the raw error so dev tools shows every field — wrappers
       // around fetch/SDK errors otherwise lose status/body when stringified.
       console.error(`[job ${tag}] failed:`, e);
+      playSound("buzz");
       const msg = extractErrorMessage(e);
       gen.updateJob(spec.id, {
         status: "failed",
@@ -570,25 +572,6 @@ function buildMetadataRecord(ctx: DownloadCtx, iterationIndex: number) {
     timestamp: new Date().toISOString(),
     providerResponse: ctx.out.raw,
   };
-}
-
-function playDing() {
-  try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "sine";
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
-    osc.onended = () => void ctx.close();
-  } catch {
-    // audio unavailable
-  }
 }
 
 // Sanitize a string for use in a filename: collapse unsafe chars to underscore.
