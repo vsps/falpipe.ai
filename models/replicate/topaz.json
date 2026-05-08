@@ -20,7 +20,7 @@
         { "name": "scale", "label": "Scale", "type": "int", "api_field": "scale", "default": 2, "min": 1, "max": 6 },
         { "name": "model", "label": "Model", "type": "enum", "api_field": "model", "default": "Standard V2",
           "options": ["Standard V2", "Low Resolution V2", "CGI", "High Fidelity V2", "Text Refine"] },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpg", "webp"] }
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpg", "options": ["png", "jpg", "webp"] }
       ]
     },
     {

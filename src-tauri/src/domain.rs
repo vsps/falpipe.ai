@@ -79,9 +79,11 @@ pub struct ColorOverrides {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub bg: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub panel: Option<String>,
+    pub border: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub surface: Option<String>,
+    pub src: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub handle: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub text: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]

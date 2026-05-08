@@ -26,7 +26,7 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction, on
 
   return (
     <div
-      className="bg-surface p-gallery-column flex flex-col gap-gallery-column-gap shrink-0 h-full min-h-0"
+      className={`${column.isSrc ? "bg-src-bg" : "bg-surface"} border border-border p-gallery-column flex flex-col gap-gallery-column-gap shrink-0 h-full min-h-0`}
       style={{ width: `${width}px` }}
     >
       <div

@@ -17,7 +17,7 @@
         { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "1:1",
           "options": ["1:1", "4:3", "3:2", "16:9", "21:9", "5:4", "4:5", "3:4", "2:3", "9:16"] },
         { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1K", "options": ["1K", "2K", "4K"] },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpg"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpg", "options": ["png", "jpg"] },
         { "name": "safety_tolerance", "label": "Safety", "type": "int", "api_field": "safety_tolerance", "default": 2, "min": 1, "max": 6 },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
@@ -40,7 +40,7 @@
         { "name": "aspect_ratio", "label": "Aspect Ratio", "type": "enum", "api_field": "aspect_ratio", "default": "match_input_image",
           "options": ["match_input_image", "1:1", "4:3", "3:2", "16:9", "21:9", "5:4", "4:5", "3:4", "2:3", "9:16"] },
         { "name": "resolution", "label": "Resolution", "type": "enum", "api_field": "resolution", "default": "1K", "options": ["1K", "2K", "4K"] },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpg"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpg", "options": ["png", "jpg"] },
         { "name": "safety_tolerance", "label": "Safety", "type": "int", "api_field": "safety_tolerance", "default": 2, "min": 1, "max": 6 },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]

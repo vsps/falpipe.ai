@@ -4,6 +4,15 @@ import { pickFile, showMessage } from "../lib/dialog";
 import { applyColors, COLOR_KEYS, DEFAULT_COLORS } from "../lib/colors";
 import type { ColorOverrides, Config } from "../lib/types";
 
+const COLOR_LABELS: Record<keyof ColorOverrides, string> = {
+  bg: "bg",
+  border: "border",
+  src: "panel bg",
+  handle: "handles",
+  text: "text",
+  accent: "accent",
+};
+
 type Props = {
   onClose: () => void;
 };
@@ -29,9 +38,8 @@ export function SettingsDialog({ onClose }: Props) {
   const [revealKey, setRevealKey] = useState(false);
   const [revealReplicate, setRevealReplicate] = useState(false);
   const [config, setConfig] = useState<Config>(DEFAULT);
-  const [originalColors, setOriginalColors] = useState<
-    ColorOverrides | undefined
-  >(undefined);
+  const [originalColors, setOriginalColors] = useState<ColorOverrides | undefined>(undefined);
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const currentColors = useMemo<Required<ColorOverrides>>(
@@ -53,6 +61,7 @@ export function SettingsDialog({ onClose }: Props) {
         setConfig(cfg);
         setOriginalColors(cfg.colors);
       }
+      setLoaded(true);
     })();
   }, []);
 
@@ -67,10 +76,11 @@ export function SettingsDialog({ onClose }: Props) {
     return () => window.removeEventListener("keydown", esc);
   }, []);
 
-  // Live-preview color edits while the dialog is open.
+  // Live-preview color edits — only after config has loaded to avoid wiping current colors on mount.
   useEffect(() => {
+    if (!loaded) return;
     applyColors(config.colors);
-  }, [config.colors]);
+  }, [config.colors, loaded]);
 
   function handleClose() {
     // Revert live-preview to the saved state.
@@ -239,7 +249,7 @@ export function SettingsDialog({ onClose }: Props) {
               {COLOR_KEYS.map((key) => (
                 <ColorRow
                   key={key}
-                  name={key}
+                  name={COLOR_LABELS[key]}
                   value={currentColors[key]}
                   onChange={(v) => setColor(key, v)}
                 />

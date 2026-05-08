@@ -14,11 +14,11 @@
         { "name": "images", "data_type": "IMAGE", "api_field": "images" }
       ],
       "parameters": [
-        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "landscape_4_3",
+        { "name": "image_size", "label": "Image Size", "type": "enum", "api_field": "image_size", "default": "1920x1080",
           "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9", "1280x720", "1920x1080", "2560x1440", "3840x2160"] },
         { "name": "quality", "label": "Quality", "type": "enum", "api_field": "quality", "default": "high", "options": ["low", "medium", "high"] },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] }
       ]
     },
     {
@@ -37,7 +37,7 @@
           "options": ["auto", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
         { "name": "quality", "label": "Quality", "type": "enum", "api_field": "quality", "default": "high", "options": ["low", "medium", "high"] },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] }
       ]
     }
   ]

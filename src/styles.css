@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  /* 5 user-editable tokens (exposed in Settings; persisted to config.colors). */
-  --color-bg: #cccccc;
-  --color-panel: #bbbbbb;
-  --color-surface: #aaaaaa;
-  --color-text: #111111;
-  --color-accent: #ee88aa;
-  --color-accent-dim: #eeeeee;
+  /* 6 user-editable tokens (exposed in Settings; persisted to config.colors). */
+  --color-bg: #303030;
+  --color-panel: #303030;   /* kept for component classes; always mirrors bg at runtime */
+  --color-surface: #303030; /* kept for component classes; always mirrors bg at runtime */
+  --color-border: #202020;  /* 1px border on innermost panel columns */
+  --color-src-bg: #353535;  /* background tint for SRC gallery columns + inset areas */
+  --color-text: #aaaaaa;
+  --color-accent: #9b31f2;
+  --color-handle: #505050;  /* scrollbar thumbs, resize bars, clickable chrome (idle) */
 
   /* Derived / semantic / non-editable. */
-  --color-inset: #999999; /* inner input/textarea tone, one step darker than surface */
+  --color-inset: #353535; /* mirrors src-bg at runtime */
   --color-dim: #666666;
   --color-edge: #8a8a8a;
   --color-ok: #4ade80;
   --color-warn: #fbbf24;
   --color-bad: #f87171;
 
-
-  /* Gallery backdrop: the strip behind the thumbnail columns + "+" button.
-     Defaults to panel tone; tune independently here. */
-  --color-gallery-surface: #cccccc;
+  /* Gallery backdrop: the strip behind the thumbnail columns + "+" button. */
+  --color-gallery-surface: #303030;
 
   --font-sans: "Google Sans Code", "Consolas", "Menlo", "Courier New", monospace;
   --font-mono: "Google Sans Code", "Consolas", "Menlo", "Courier New", monospace;
@@ -102,7 +102,7 @@ textarea {
   height: 6px;
 }
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--color-handle);
   border-radius: 3px;
 }
 .thin-scroll::-webkit-scrollbar-track {
@@ -110,10 +110,9 @@ textarea {
 }
 
 /* Shared styling for clickable chrome — column headers, resize bars, the
-   add-version button. Idle = desaturated accent, hover = full accent. Apply
-   to anything that should read as "clickable and themed with the accent". */
+   add-version button. Idle = handle color, hover = full accent. */
 .accent-hover {
-  background-color: var(--color-accent-dim);
+  background-color: var(--color-handle);
   transition: background-color 150ms ease;
 }
 .accent-hover:hover {

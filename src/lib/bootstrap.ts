@@ -65,8 +65,8 @@ export async function bootstrap(): Promise<() => void> {
     ? (configRaw as unknown as Config)
     : null;
 
-  // Apply color overrides (if any) at startup.
-  if (config?.colors) applyColors(config.colors);
+  // Always apply colors at startup so CSS variables are explicit inline values.
+  applyColors(config?.colors);
 
   // Apply model selection (before settings so defaults don't overwrite persisted).
   const entries = useModelsStore.getState().entries;

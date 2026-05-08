@@ -150,7 +150,7 @@ function PathSelect({
 }) {
   return (
     <select
-      className="bg-bg text-text px-2 py-[2px] min-w-[140px] max-w-[260px] disabled:opacity-50"
+      className="bg-src-bg text-text px-2 py-[2px] min-w-[140px] max-w-[260px] disabled:opacity-50"
       value={value ?? ""}
       onChange={(e) => {
         const v = e.currentTarget.value;
@@ -181,7 +181,7 @@ function Pill({
 }) {
   return (
     <div
-      className={`bg-bg text-text px-2 py-[2px] whitespace-nowrap ${
+      className={`bg-src-bg text-text px-2 py-[2px] whitespace-nowrap ${
         truncate ? "flex-1 min-w-0 overflow-hidden text-ellipsis" : ""
       } ${onClick ? "cursor-pointer" : ""}`}
       title={title ?? value}

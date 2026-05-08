@@ -19,7 +19,7 @@
         { "name": "num_inference_steps", "label": "Steps", "type": "int", "api_field": "num_inference_steps", "default": 4, "min": 1, "max": 12 },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
     },
@@ -40,7 +40,7 @@
         { "name": "guidance_scale", "label": "Guidance", "type": "float", "api_field": "guidance_scale", "default": 3.5, "min": 1.0, "max": 20.0, "step": 0.1 },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
     },
@@ -59,7 +59,7 @@
           "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
     },
@@ -84,7 +84,7 @@
         { "name": "num_inference_steps", "label": "Steps", "type": "int", "api_field": "num_inference_steps", "default": 4, "min": 1, "max": 12 },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
     },
@@ -110,7 +110,7 @@
         { "name": "guidance_scale", "label": "Guidance", "type": "float", "api_field": "guidance_scale", "default": 3.5, "min": 1.0, "max": 20.0, "step": 0.1 },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
     },
@@ -134,7 +134,7 @@
           "options": ["square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"] },
         { "name": "num_images", "label": "Num Images", "type": "int", "api_field": "num_images", "default": 1, "min": 1, "max": 4 },
         { "name": "enable_safety_checker", "label": "Safety Checker", "type": "bool", "api_field": "enable_safety_checker", "default": true },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] },
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] },
         { "name": "seed", "label": "Seed", "type": "int", "api_field": "seed", "default": -1, "min": -1, "max": 2147483647 }
       ]
     }

@@ -143,7 +143,7 @@ export function RefImagesColumn() {
     <>
       <div
         ref={panelRef}
-        className={`bg-surface p-prompt-column text-text w-[381px] flex flex-col gap-prompt-column-gap shrink-0 transition-colors ${
+        className={`bg-surface border border-border p-prompt-column text-text w-[381px] flex flex-col gap-prompt-column-gap shrink-0 transition-colors ${
           dragOver ? "outline outline-2 outline-accent" : ""
         }`}
       >

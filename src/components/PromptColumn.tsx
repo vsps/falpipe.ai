@@ -34,7 +34,7 @@ function SequencePromptColumn({ title }: { title: string }) {
   const canGoFwd = history.cursor < history.entries.length;
 
   return (
-    <div className="bg-surface p-prompt-column text-text w-[300px] flex flex-col gap-prompt-column-gap shrink-0">
+    <div className="bg-surface border border-border p-prompt-column text-text w-[300px] flex flex-col gap-prompt-column-gap shrink-0">
       <div className="flex items-center text-sm gap-[4px] font-semibold">
         <span>{title}</span>
         {history.entries.length > 0 && (
@@ -116,7 +116,7 @@ function ShotPromptColumn({ title }: { title: string }) {
   const canGoFwd = safeCursor < entries.length;
 
   return (
-    <div className="bg-surface p-prompt-column text-text w-[300px] flex flex-col gap-prompt-column-gap shrink-0 min-h-0">
+    <div className="bg-surface border border-border p-prompt-column text-text w-[300px] flex flex-col gap-prompt-column-gap shrink-0 min-h-0">
       <div className="flex items-center text-sm gap-[4px] font-semibold">
         <span>{title}</span>
         {entries.length > 0 && (

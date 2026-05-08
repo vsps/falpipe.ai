@@ -18,7 +18,7 @@
       ],
       "parameters": [
         { "name": "scale", "label": "Scale", "type": "int", "api_field": "scale", "default": 2, "min": 2, "max": 4 },
-        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "png", "options": ["png", "jpeg", "webp"] }
+        { "name": "output_format", "label": "Format", "type": "enum", "api_field": "output_format", "default": "jpeg", "options": ["png", "jpeg", "webp"] }
       ]
     },
     {

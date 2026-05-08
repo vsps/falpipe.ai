@@ -71,12 +71,12 @@ export function RunColumn() {
           .join("\n");
 
   const btn =
-    "bg-bg text-accent font-mono text-xs px-3 py-2 hover:opacity-80 w-full text-center";
+    "bg-src-bg text-accent font-mono text-xs px-3 py-2 hover:opacity-80 w-full text-center";
   const btnDisabled =
-    "bg-bg text-accent font-mono text-xs px-3 py-2 opacity-40 cursor-not-allowed w-full text-center";
+    "bg-src-bg text-accent font-mono text-xs px-3 py-2 opacity-40 cursor-not-allowed w-full text-center";
 
   return (
-    <div className="bg-surface p-prompt-column text-text flex flex-col items-center gap-prompt-column-gap shrink-0 w-[110px]">
+    <div className="bg-surface border border-border p-prompt-column text-text flex flex-col items-center gap-prompt-column-gap shrink-0 w-[110px]">
       <button
         onClick={resetGenerationForm}
         className={`${btn} mb-1`}
@@ -91,7 +91,7 @@ export function RunColumn() {
         min={1}
         value={iterations}
         onChange={(e) => setIterations(parseInt(e.currentTarget.value, 10))}
-        className="w-16 text-center bg-bg text-text py-[2px]"
+        className="w-full text-center bg-src-bg text-text py-[2px]"
       />
 
       <button

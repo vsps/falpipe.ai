@@ -139,8 +139,9 @@ export type PromptHistoryChannel = {
 
 export type ColorOverrides = {
   bg?: string;
-  panel?: string;
-  surface?: string;
+  border?: string;
+  src?: string;
+  handle?: string;
   text?: string;
   accent?: string;
 };
