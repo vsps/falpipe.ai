@@ -14,12 +14,11 @@ type Props = {
 
 const DEFAULT_ITEMS: AvailableAction[] = [
   "add_to_refs",
-  "copy_to_seq_src",
-  "copy_to_shot_src",
   "copy_path",
   "copy_image",
   "copy_prompt",
   "copy_settings",
+  "rename",
   "trace",
   "zoom",
   "refresh",
@@ -29,12 +28,12 @@ const DEFAULT_ITEMS: AvailableAction[] = [
 
 const LABELS: Record<AvailableAction, string> = {
   add_to_refs: "Add to references",
-  copy_to_seq_src: "Copy to SEQ/SRC",
-  copy_to_shot_src: "Copy to SHOT/SRC",
   copy_path: "Copy path",
   copy_image: "Copy image",
   copy_prompt: "Copy prompt",
   copy_settings: "Reuse prompt",
+  rename: "Rename...",
+  edit: "Edit (draw)",
   trace: "Trace origins",
   zoom: "Zoom",
   refresh: "Refresh",

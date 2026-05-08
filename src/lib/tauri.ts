@@ -78,6 +78,15 @@ export const cmd = {
   ): Promise<string> =>
     rawInvoke("ref_copy_to_seq_src", { shotPath, sourcePath }),
 
+  image_copy_to_dir: (sourcePath: string, destDir: string): Promise<string> =>
+    rawInvoke("image_copy_to_dir", { sourcePath, destDir }),
+
+  image_move_to_dir: (sourcePath: string, destDir: string): Promise<string> =>
+    rawInvoke("image_move_to_dir", { sourcePath, destDir }),
+
+  image_rename: (sourcePath: string, newStem: string): Promise<string> =>
+    rawInvoke("image_rename", { sourcePath, newStem }),
+
   reveal_in_explorer: (path: string): Promise<void> =>
     rawInvoke("reveal_in_explorer", { path }),
 

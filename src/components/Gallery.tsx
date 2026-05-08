@@ -1,14 +1,16 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import type { GalleryImage } from "../lib/types";
-import { GalleryColumn } from "./GalleryColumn";
+import { GalleryColumn, type DragState } from "./GalleryColumn";
 import { ImageZoomModal } from "./ImageZoomModal";
+import { RenameImageModal } from "./RenameImageModal";
 import { IconBtn } from "./IconBtn";
 import { ResizeBar } from "./ResizeBar";
 import { useSessionStore } from "../stores/sessionStore";
-import { performImageAction, type ImageAction } from "../lib/actions";
+import { addImageToRefs, performImageAction, type ImageAction } from "../lib/actions";
 import { cmd } from "../lib/tauri";
 import { basename } from "../lib/paths";
 import { confirmAction, showMessage } from "../lib/dialog";
+import { fileSrc } from "../lib/assets";
 
 const VIDEO_EXTS = ["mp4", "webm", "mov", "mkv"];
 
@@ -34,15 +36,183 @@ export function Gallery() {
     setThumbColWidth,
     zoomImagePath,
     setZoomImage,
+    renameImagePath,
+    setRenameImage,
+    shotPath,
   } = session;
 
   const flatImages = columns.flatMap((c) => c.images);
   const zoomImage = zoomImagePath
     ? flatImages.find((i) => i.path === zoomImagePath) ?? syntheticImage(zoomImagePath)
     : null;
+  const renameImage = renameImagePath
+    ? flatImages.find((i) => i.path === renameImagePath) ?? syntheticImage(renameImagePath)
+    : null;
 
   const onImageAction = (action: ImageAction, path: string) =>
     performImageAction(action, path);
+
+  const [dragState, setDragState] = useState<DragState>(null);
+
+  const destDirFor = useCallback(
+    (col: { isSrc: boolean; id: string; version: string }): string => {
+      // SRC columns store full path in `id`; version columns store the bare name.
+      if (col.isSrc) return col.id;
+      return shotPath ? `${shotPath}/${col.version}` : col.id;
+    },
+    [shotPath],
+  );
+
+  const onDragStart = useCallback(
+    (payload: {
+      fromPath: string;
+      fromColumnVersion: string;
+      pointerEvent: React.PointerEvent;
+    }) => {
+      setDragState({
+        fromPath: payload.fromPath,
+        fromColumnVersion: payload.fromColumnVersion,
+        overColumnVersion: null,
+        shiftHeld: payload.pointerEvent.shiftKey,
+        pointerX: payload.pointerEvent.clientX,
+        pointerY: payload.pointerEvent.clientY,
+      });
+      session.setImageDrag({ fromPath: payload.fromPath });
+    },
+    [session],
+  );
+
+  // Global drag handlers — installed only while dragging.
+  useEffect(() => {
+    if (!dragState) return;
+    const prevCursor = document.body.style.cursor;
+
+    function findColumnAt(x: number, y: number): {
+      version: string;
+      destDir: string;
+    } | null {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return null;
+      const col = (el as HTMLElement).closest<HTMLElement>(
+        "[data-column-version]",
+      );
+      if (!col) return null;
+      const version = col.dataset.columnVersion ?? "";
+      const destDir = col.dataset.columnDest ?? "";
+      if (!version || !destDir) return null;
+      return { version, destDir };
+    }
+
+    function isOverRefPanel(x: number, y: number): boolean {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return false;
+      return !!(el as HTMLElement).closest("[data-ref-drop]");
+    }
+
+    const onMove = (e: PointerEvent) => {
+      const hit = findColumnAt(e.clientX, e.clientY);
+      setDragState((prev) =>
+        prev
+          ? {
+              ...prev,
+              overColumnVersion: hit?.version ?? null,
+              shiftHeld: e.shiftKey,
+              pointerX: e.clientX,
+              pointerY: e.clientY,
+            }
+          : prev,
+      );
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDragState(null);
+        session.setImageDrag(null);
+        return;
+      }
+      if (e.key === "Shift") {
+        setDragState((prev) => (prev ? { ...prev, shiftHeld: true } : prev));
+      }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        setDragState((prev) => (prev ? { ...prev, shiftHeld: false } : prev));
+      }
+    };
+
+    const onUp = (e: PointerEvent) => {
+      const current = dragState;
+      const hitCol = findColumnAt(e.clientX, e.clientY);
+      const hitRef = isOverRefPanel(e.clientX, e.clientY);
+      setDragState(null);
+      session.setImageDrag(null);
+      if (!current) return;
+      if (hitRef) {
+        void commitRefDrop(current.fromPath);
+        return;
+      }
+      if (!hitCol) return;
+      if (hitCol.version === current.fromColumnVersion) return;
+      const copy = e.shiftKey;
+      void commitDrop(current.fromPath, hitCol.destDir, copy);
+    };
+
+    const onCancel = () => {
+      setDragState(null);
+      session.setImageDrag(null);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+      document.body.style.cursor = prevCursor;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragState != null]);
+
+  // Update body cursor live as shift state changes.
+  useEffect(() => {
+    if (!dragState) return;
+    document.body.style.cursor = dragState.shiftHeld ? "copy" : "grabbing";
+  }, [dragState?.shiftHeld, dragState != null]);
+
+  async function commitDrop(fromPath: string, destDir: string, copy: boolean) {
+    try {
+      const fn = copy ? cmd.image_copy_to_dir : cmd.image_move_to_dir;
+      const newPath = await fn(fromPath, destDir);
+      await session.rescanShot();
+      session.setSelectedImage(newPath);
+    } catch (e) {
+      const msg = String(e);
+      if (msg.includes("FILENAME_EXISTS")) {
+        await showMessage(
+          `Skipped: ${basename(fromPath)} already exists at destination`,
+          { kind: "warning" },
+        );
+      } else {
+        await showMessage(msg, { kind: "error" });
+      }
+    }
+  }
+
+  async function commitRefDrop(fromPath: string) {
+    try {
+      await addImageToRefs(fromPath);
+      await session.rescanShot();
+    } catch (e) {
+      await showMessage(String(e), { kind: "error" });
+    }
+  }
 
   // Grid keyboard nav. Arrow keys traverse the 2D gallery (columns × images).
   // Left/Right across columns keeping the row index; Up/Down within a column.
@@ -147,9 +317,12 @@ export function Gallery() {
                 <GalleryColumn
                   column={c}
                   width={thumbColWidth}
+                  destDir={destDirFor(c)}
+                  dragState={dragState}
                   onFolderDelete={() => onFolderDelete(c.version)}
                   onImageAction={onImageAction}
                   onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
+                  onDragStart={onDragStart}
                 />
                 {i < columns.length - 1 && (
                   <ResizeBar
@@ -175,6 +348,30 @@ export function Gallery() {
         )}
       </div>
 
+      {dragState && (
+        <div
+          className="fixed pointer-events-none z-50 flex items-center gap-2"
+          style={{
+            left: dragState.pointerX + 12,
+            top: dragState.pointerY + 12,
+          }}
+        >
+          <img
+            src={fileSrc(dragState.fromPath)}
+            alt=""
+            draggable={false}
+            className="w-16 h-16 object-cover border border-accent shadow-lg bg-bg"
+          />
+          <span
+            className={`text-[10px] font-mono px-1 py-[1px] ${
+              dragState.shiftHeld ? "bg-accent text-text" : "bg-panel text-text"
+            }`}
+          >
+            {dragState.shiftHeld ? "COPY" : "MOVE"}
+          </span>
+        </div>
+      )}
+
       {zoomImage && (
         <ImageZoomModal
           image={zoomImage}
@@ -183,6 +380,13 @@ export function Gallery() {
           onCopySettings={async () => onImageAction("copy_settings", zoomImage.path)}
           onTrace={async () => onImageAction("trace", zoomImage.path)}
           onDelete={async () => onImageAction("delete", zoomImage.path)}
+        />
+      )}
+
+      {renameImage && (
+        <RenameImageModal
+          image={renameImage}
+          onClose={() => setRenameImage(null)}
         />
       )}
     </div>

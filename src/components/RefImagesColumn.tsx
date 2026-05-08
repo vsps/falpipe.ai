@@ -26,10 +26,35 @@ export function RefImagesColumn() {
 
   const [menu, setMenu] = useState<{ anchor: HTMLElement; ref: RefImage } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [galleryDragOver, setGalleryDragOver] = useState(false);
   const [dragState, setDragState] = useState<{ fromIdx: number; overIdx: number | null } | null>(
     null,
   );
   const panelRef = useRef<HTMLDivElement>(null);
+  const imageDrag = useSessionStore((s) => s.imageDrag);
+
+  // While a gallery thumbnail is being dragged, track whether the pointer is
+  // over the ref panel so we can highlight it as a drop target. Drop itself is
+  // handled by Gallery's pointerup listener (which knows the source path).
+  useEffect(() => {
+    if (!imageDrag) {
+      setGalleryDragOver(false);
+      return;
+    }
+    const onMove = (e: PointerEvent) => {
+      const el = panelRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const inside =
+        e.clientX >= r.left &&
+        e.clientX <= r.right &&
+        e.clientY >= r.top &&
+        e.clientY <= r.bottom;
+      setGalleryDragOver(inside);
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [imageDrag]);
 
   async function ingestPaths(paths: string[]) {
     // Read shotPath fresh each call — the Tauri drop listener is registered
@@ -143,8 +168,9 @@ export function RefImagesColumn() {
     <>
       <div
         ref={panelRef}
+        data-ref-drop="true"
         className={`bg-surface border border-border p-prompt-column text-text w-[381px] flex flex-col gap-prompt-column-gap shrink-0 transition-colors ${
-          dragOver ? "outline outline-2 outline-accent" : ""
+          dragOver || galleryDragOver ? "outline outline-2 outline-accent" : ""
         }`}
       >
         <div className="flex items-center text-sm font-semibold">

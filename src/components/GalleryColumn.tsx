@@ -5,15 +5,40 @@ import { Thumbnail } from "./Thumbnail";
 import { useSessionStore } from "../stores/sessionStore";
 import { basename } from "../lib/paths";
 
+export type DragState = {
+  fromPath: string;
+  fromColumnVersion: string;
+  overColumnVersion: string | null;
+  shiftHeld: boolean;
+  pointerX: number;
+  pointerY: number;
+} | null;
+
 type Props = {
   column: GalleryColumnData;
   width: number;
+  destDir: string;
+  dragState: DragState;
   onFolderDelete: () => void;
   onImageAction: (action: ImageAction, imagePath: string) => void;
   onRefresh?: () => void;
+  onDragStart: (payload: {
+    fromPath: string;
+    fromColumnVersion: string;
+    pointerEvent: React.PointerEvent;
+  }) => void;
 };
 
-export function GalleryColumn({ column, width, onFolderDelete, onImageAction, onRefresh }: Props) {
+export function GalleryColumn({
+  column,
+  width,
+  destDir,
+  dragState,
+  onFolderDelete,
+  onImageAction,
+  onRefresh,
+  onDragStart,
+}: Props) {
   const { targetVersion, setTargetVersion, selectedImagePath, traceActive } = useSessionStore();
   const twoCol = width > 220;
 
@@ -24,9 +49,18 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction, on
     ? "bg-surface text-text"
     : "accent-hover text-text";
 
+  const isDropTarget =
+    dragState != null &&
+    dragState.overColumnVersion === column.version &&
+    dragState.fromColumnVersion !== column.version;
+
   return (
     <div
-      className={`${column.isSrc ? "bg-src-bg" : "bg-surface"} border border-border p-gallery-column flex flex-col gap-gallery-column-gap shrink-0 h-full min-h-0`}
+      data-column-version={column.version}
+      data-column-dest={destDir}
+      className={`${column.isSrc ? "bg-src-bg" : "bg-surface"} border ${
+        isDropTarget ? "outline outline-2 outline-accent border-transparent" : "border-border"
+      } p-gallery-column flex flex-col gap-gallery-column-gap shrink-0 h-full min-h-0`}
       style={{ width: `${width}px` }}
     >
       <div
@@ -66,13 +100,17 @@ export function GalleryColumn({ column, width, onFolderDelete, onImageAction, on
               image={img}
               selected={selectedImagePath === img.path}
               hidden={!inTrace}
+              columnVersion={column.version}
+              isDragSource={dragState?.fromPath === img.path}
               traceActive={traceActive?.imagePath === img.path}
               onSelect={() => onImageAction("select", img.path)}
               onZoom={() => onImageAction("zoom", img.path)}
               onAddToRefs={() => onImageAction("add_to_refs", img.path)}
               onCopySettings={() => onImageAction("copy_settings", img.path)}
               onTrace={() => onImageAction("trace", img.path)}
+              onEdit={() => onImageAction("edit", img.path)}
               onDelete={() => onImageAction("delete", img.path)}
+              onDragStart={onDragStart}
             />
           );
         })}

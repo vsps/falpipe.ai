@@ -8,25 +8,39 @@ type Props = {
   image: GalleryImage;
   selected: boolean;
   hidden?: boolean;
+  columnVersion: string;
+  isDragSource?: boolean;
   onSelect: () => void;
   onZoom: () => void;
   onAddToRefs: () => void;
   onCopySettings: () => void;
   onTrace: () => void;
+  onEdit: () => void;
   onDelete: () => void;
+  onDragStart: (payload: {
+    fromPath: string;
+    fromColumnVersion: string;
+    pointerEvent: React.PointerEvent;
+  }) => void;
   traceActive?: boolean;
 };
+
+const DRAG_THRESHOLD_PX = 5;
 
 export function Thumbnail({
   image,
   selected,
   hidden,
+  columnVersion,
+  isDragSource,
   onSelect,
   onZoom,
   onAddToRefs,
   onCopySettings,
   onTrace,
+  onEdit,
   onDelete,
+  onDragStart,
   traceActive,
 }: Props) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -46,6 +60,37 @@ export function Thumbnail({
   // Reset aspect when image changes so the old ratio doesn't persist briefly.
   useEffect(() => { setAspect(1); }, [srcUrl]);
 
+  // Drag origin: start tracking on pointerdown, only convert to a drag once the
+  // pointer has moved past the threshold. Below threshold = the click handler runs.
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.button !== 0) return;
+    const tgt = e.target as HTMLElement;
+    if (tgt.closest("button")) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+        cleanup();
+        onDragStart({
+          fromPath: image.path,
+          fromColumnVersion: columnVersion,
+          pointerEvent: e,
+        });
+      }
+    };
+    const onUp = () => cleanup();
+    const cleanup = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
+
   if (hidden) return null;
 
   return (
@@ -53,8 +98,9 @@ export function Thumbnail({
       ref={rootRef}
       className={`group relative w-full shrink-0 overflow-hidden cursor-pointer border ${
         selected ? "border-accent" : "border-transparent"
-      } ${traceActive ? "ring-2 ring-warn" : ""} bg-bg`}
+      } ${traceActive ? "ring-2 ring-warn" : ""} ${isDragSource ? "opacity-40" : ""} bg-bg`}
       style={{ paddingBottom: `${aspect * 100}%` }}
+      onPointerDown={onPointerDown}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
@@ -73,6 +119,7 @@ export function Thumbnail({
           loading="lazy"
           decoding="async"
           alt=""
+          draggable={false}
           onLoad={(e) => {
             const el = e.currentTarget;
             if (el.naturalWidth > 0) setAspect(el.naturalHeight / el.naturalWidth);
@@ -110,17 +157,22 @@ export function Thumbnail({
       <div
         className="absolute top-0 left-0 right-0 flex items-center gap-[2px] bg-bg/80 px-[2px] py-[1px] opacity-0 group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <IconBtn name="zoom_in" size={16} title="Zoom" onClick={onZoom} />
         <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
         <IconBtn name="copy_all" size={16} title="Reuse prompt" onClick={onCopySettings} />
         <IconBtn name="conversion_path" size={16} title="Trace" onClick={onTrace} />
+        {!image.isVideo && (
+          <IconBtn name="edit" size={16} title="Edit (draw)" onClick={onEdit} />
+        )}
       </div>
 
       {/* Delete — bottom right */}
       <div
         className="absolute bottom-1 right-1 bg-bg/80 px-[2px] py-[1px] opacity-0 group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <IconBtn name="delete" size={16} title="Delete" onClick={onDelete} />
       </div>

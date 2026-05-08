@@ -138,8 +138,8 @@ export type ImageAction =
   | "refresh"
   | "open_location"
   | "delete"
-  | "copy_to_seq_src"
-  | "copy_to_shot_src";
+  | "rename"
+  | "edit";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "m4v", "avi"]);
 
@@ -256,34 +256,14 @@ export async function performImageAction(
       }
       return;
     }
-    case "copy_to_seq_src": {
-      const { shotPath } = useSessionStore.getState();
-      if (!shotPath) {
-        await showMessage("No shot open", { kind: "warning" });
-        return;
-      }
-      try {
-        await cmd.ref_copy_to_seq_src(shotPath, path);
-        await session.rescanShot();
-      } catch (e) {
-        await showMessage(String(e), { kind: "error" });
-      }
+    case "rename":
+      session.setRenameImage(path);
       return;
-    }
-    case "copy_to_shot_src": {
-      const { shotPath } = useSessionStore.getState();
-      if (!shotPath) {
-        await showMessage("No shot open", { kind: "warning" });
-        return;
-      }
-      try {
-        await cmd.ref_copy_to_src(shotPath, path);
-        await session.rescanShot();
-      } catch (e) {
-        await showMessage(String(e), { kind: "error" });
-      }
+    case "edit":
+      session.setSelectedImage(path);
+      session.setZoomInitialMode("draw");
+      session.setZoomImage(path);
       return;
-    }
     case "refresh":
       try {
         await session.rescanShot();

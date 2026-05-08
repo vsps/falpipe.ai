@@ -362,38 +362,235 @@ pub fn reveal_in_explorer(path: String) -> AppResult<()> {
     Ok(())
 }
 
+// ---------- Image triple (primary + .json sidecar + .thumb.png) helpers ----------
+
+#[derive(Clone, Copy)]
+enum CollisionPolicy {
+    Overwrite,
+    Error,
+}
+
+fn sibling_paths(p: &Path) -> AppResult<(String, String, PathBuf, PathBuf)> {
+    let stem = p
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| AppError::Msg("no file stem".into()))?
+        .to_string();
+    let filename = p
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| AppError::Msg("no filename".into()))?
+        .to_string();
+    let dir = p
+        .parent()
+        .ok_or_else(|| AppError::Msg("no parent dir".into()))?;
+    let sidecar = dir.join(format!("{stem}.json"));
+    let thumb = dir.join(format!("{stem}.thumb.png"));
+    Ok((stem, filename, sidecar, thumb))
+}
+
+fn same_dir(a: &Path, b: &Path) -> bool {
+    let na = a.canonicalize().ok();
+    let nb = b.canonicalize().ok();
+    if let (Some(x), Some(y)) = (na, nb) {
+        return x == y;
+    }
+    as_str(a) == as_str(b)
+}
+
+fn copy_triple_to_dir(src: &Path, dest_dir: &Path, policy: CollisionPolicy) -> AppResult<PathBuf> {
+    if !src.is_file() {
+        return Err(AppError::Msg(format!("not a file: {}", as_str(src))));
+    }
+    if !dest_dir.is_dir() {
+        ensure_dir(dest_dir)?;
+    }
+    let src_dir = src
+        .parent()
+        .ok_or_else(|| AppError::Msg("no parent dir".into()))?;
+    if same_dir(src_dir, dest_dir) {
+        return Err(AppError::Msg(
+            "source and destination are the same directory".into(),
+        ));
+    }
+    let (_stem, filename, src_sidecar, src_thumb) = sibling_paths(src)?;
+    let dest_primary = dest_dir.join(&filename);
+    if dest_primary.exists() {
+        if matches!(policy, CollisionPolicy::Error) {
+            return Err(AppError::Msg(format!("FILENAME_EXISTS: {filename}")));
+        }
+    }
+    std::fs::copy(src, &dest_primary)?;
+    if src_sidecar.exists() {
+        let dest_sidecar = dest_dir.join(src_sidecar.file_name().unwrap());
+        if let Err(e) = std::fs::copy(&src_sidecar, &dest_sidecar) {
+            eprintln!("sidecar copy failed: {e}");
+        }
+    }
+    if src_thumb.exists() {
+        let dest_thumb = dest_dir.join(src_thumb.file_name().unwrap());
+        if let Err(e) = std::fs::copy(&src_thumb, &dest_thumb) {
+            eprintln!("thumb copy failed: {e}");
+        }
+    }
+    Ok(dest_primary)
+}
+
+fn move_one(src: &Path, dest: &Path) -> std::io::Result<()> {
+    match std::fs::rename(src, dest) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::CrossesDevices => {
+            std::fs::copy(src, dest)?;
+            std::fs::remove_file(src)?;
+            Ok(())
+        }
+        Err(e) => Err(e),
+    }
+}
+
+fn move_triple_to_dir(src: &Path, dest_dir: &Path) -> AppResult<PathBuf> {
+    if !src.is_file() {
+        return Err(AppError::Msg(format!("not a file: {}", as_str(src))));
+    }
+    if !dest_dir.is_dir() {
+        ensure_dir(dest_dir)?;
+    }
+    let src_dir = src
+        .parent()
+        .ok_or_else(|| AppError::Msg("no parent dir".into()))?;
+    if same_dir(src_dir, dest_dir) {
+        return Err(AppError::Msg(
+            "source and destination are the same directory".into(),
+        ));
+    }
+    let (_stem, filename, src_sidecar, src_thumb) = sibling_paths(src)?;
+    let dest_primary = dest_dir.join(&filename);
+    if dest_primary.exists() {
+        return Err(AppError::Msg(format!("FILENAME_EXISTS: {filename}")));
+    }
+    move_one(src, &dest_primary)?;
+    if src_sidecar.exists() {
+        let dest_sidecar = dest_dir.join(src_sidecar.file_name().unwrap());
+        if let Err(e) = move_one(&src_sidecar, &dest_sidecar) {
+            eprintln!("sidecar move failed: {e}");
+        }
+    }
+    if src_thumb.exists() {
+        let dest_thumb = dest_dir.join(src_thumb.file_name().unwrap());
+        if let Err(e) = move_one(&src_thumb, &dest_thumb) {
+            eprintln!("thumb move failed: {e}");
+        }
+    }
+    Ok(dest_primary)
+}
+
+fn validate_filename_stem(stem: &str) -> AppResult<()> {
+    if stem.is_empty() {
+        return Err(AppError::Msg("name is empty".into()));
+    }
+    for c in stem.chars() {
+        if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control() {
+            return Err(AppError::Msg(format!("invalid character: {c:?}")));
+        }
+    }
+    let upper = stem.to_ascii_uppercase();
+    let reserved = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+        "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+    if reserved.contains(&upper.as_str()) {
+        return Err(AppError::Msg(format!("reserved name: {stem}")));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn ref_copy_to_src(shot_path: String, source_path: String) -> AppResult<String> {
     let src = PathBuf::from(&source_path);
-    if !src.is_file() {
-        return Err(AppError::Msg(format!("not a file: {source_path}")));
-    }
     let dir = shot_src_dir(&PathBuf::from(&shot_path))?;
-    let filename = src
-        .file_name()
-        .ok_or_else(|| AppError::Msg("no filename".into()))?;
-    let dest = dir.join(filename);
-    std::fs::copy(&src, &dest)?;
+    let dest = copy_triple_to_dir(&src, &dir, CollisionPolicy::Overwrite)?;
     Ok(as_str(&dest))
 }
 
 #[tauri::command]
 pub fn ref_copy_to_seq_src(shot_path: String, source_path: String) -> AppResult<String> {
     let src = PathBuf::from(&source_path);
-    if !src.is_file() {
-        return Err(AppError::Msg(format!("not a file: {source_path}")));
-    }
     let seq_dir = PathBuf::from(&shot_path)
         .parent()
         .ok_or_else(|| AppError::Msg("no sequence parent".into()))?
         .join(SRC_DIR);
     ensure_dir(&seq_dir)?;
-    let filename = src
-        .file_name()
-        .ok_or_else(|| AppError::Msg("no filename".into()))?;
-    let dest = seq_dir.join(filename);
-    std::fs::copy(&src, &dest)?;
+    let dest = copy_triple_to_dir(&src, &seq_dir, CollisionPolicy::Overwrite)?;
     Ok(as_str(&dest))
+}
+
+#[tauri::command]
+pub fn image_copy_to_dir(source_path: String, dest_dir: String) -> AppResult<String> {
+    let src = PathBuf::from(&source_path);
+    let dest = PathBuf::from(&dest_dir);
+    let out = copy_triple_to_dir(&src, &dest, CollisionPolicy::Error)?;
+    Ok(as_str(&out))
+}
+
+#[tauri::command]
+pub fn image_move_to_dir(source_path: String, dest_dir: String) -> AppResult<String> {
+    let src = PathBuf::from(&source_path);
+    let dest = PathBuf::from(&dest_dir);
+    let out = move_triple_to_dir(&src, &dest)?;
+    Ok(as_str(&out))
+}
+
+#[tauri::command]
+pub fn image_rename(source_path: String, new_stem: String) -> AppResult<String> {
+    let src = PathBuf::from(&source_path);
+    if !src.is_file() {
+        return Err(AppError::Msg(format!("not a file: {source_path}")));
+    }
+    let trimmed = new_stem.trim();
+    validate_filename_stem(trimmed)?;
+    let (old_stem, _filename, old_sidecar, old_thumb) = sibling_paths(&src)?;
+    if trimmed == old_stem {
+        return Err(AppError::Msg("name unchanged".into()));
+    }
+    let dir = src
+        .parent()
+        .ok_or_else(|| AppError::Msg("no parent dir".into()))?;
+    let ext = src
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string());
+    let new_filename = match &ext {
+        Some(e) if !e.is_empty() => format!("{trimmed}.{e}"),
+        _ => trimmed.to_string(),
+    };
+    let new_primary = dir.join(&new_filename);
+    let new_sidecar = dir.join(format!("{trimmed}.json"));
+    let new_thumb = dir.join(format!("{trimmed}.thumb.png"));
+    if new_primary.exists() {
+        return Err(AppError::Msg(format!("FILENAME_EXISTS: {new_filename}")));
+    }
+    if old_sidecar.exists() && new_sidecar.exists() {
+        return Err(AppError::Msg(format!(
+            "FILENAME_EXISTS: {trimmed}.json"
+        )));
+    }
+    if old_thumb.exists() && new_thumb.exists() {
+        return Err(AppError::Msg(format!(
+            "FILENAME_EXISTS: {trimmed}.thumb.png"
+        )));
+    }
+    std::fs::rename(&src, &new_primary)?;
+    if old_sidecar.exists() {
+        if let Err(e) = std::fs::rename(&old_sidecar, &new_sidecar) {
+            eprintln!("sidecar rename failed: {e}");
+        }
+    }
+    if old_thumb.exists() {
+        if let Err(e) = std::fs::rename(&old_thumb, &new_thumb) {
+            eprintln!("thumb rename failed: {e}");
+        }
+    }
+    Ok(as_str(&new_primary))
 }
 
 #[tauri::command]

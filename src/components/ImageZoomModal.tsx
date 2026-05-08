@@ -32,6 +32,16 @@ export function ImageZoomModal({
   const [cropMode, setCropMode] = useState(false);
   const columns = useSessionStore((s) => s.columns);
   const setZoomImage = useSessionStore((s) => s.setZoomImage);
+  const zoomInitialMode = useSessionStore((s) => s.zoomInitialMode);
+  const setZoomInitialMode = useSessionStore((s) => s.setZoomInitialMode);
+
+  // Consume the one-shot mode flag set by the gallery edit shortcut.
+  useEffect(() => {
+    if (zoomInitialMode === "draw") {
+      setDrawMode(true);
+      setZoomInitialMode(null);
+    }
+  }, [zoomInitialMode, setZoomInitialMode]);
 
   // Flat image list across all columns in display order, for prev/next nav.
   const flatImages = useMemo(

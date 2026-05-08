@@ -20,6 +20,9 @@ type State = {
   columns: GalleryColumn[];
   selectedImagePath: string | null;
   zoomImagePath: string | null;
+  zoomInitialMode: "draw" | null;
+  renameImagePath: string | null;
+  imageDrag: { fromPath: string } | null;
   targetVersion: string | null;
 
   sequenceHistory: PromptHistoryChannel;
@@ -44,6 +47,9 @@ type Actions = {
 
   setSelectedImage: (path: string | null) => void;
   setZoomImage: (path: string | null) => void;
+  setZoomInitialMode: (mode: "draw" | null) => void;
+  setRenameImage: (path: string | null) => void;
+  setImageDrag: (drag: State["imageDrag"]) => void;
   setTrace: (state: State["traceActive"]) => void;
 
   navigatePromptHistory: (scope: PromptScope, delta: number) => void;
@@ -84,6 +90,9 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
   columns: [],
   selectedImagePath: null,
   zoomImagePath: null,
+  zoomInitialMode: null,
+  renameImagePath: null,
+  imageDrag: null,
   targetVersion: null,
 
   sequenceHistory: emptyChannel(),
@@ -195,6 +204,18 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
 
   setZoomImage(path) {
     set({ zoomImagePath: path });
+  },
+
+  setZoomInitialMode(mode) {
+    set({ zoomInitialMode: mode });
+  },
+
+  setRenameImage(path) {
+    set({ renameImagePath: path });
+  },
+
+  setImageDrag(drag) {
+    set({ imageDrag: drag });
   },
 
   setTrace(state) {
