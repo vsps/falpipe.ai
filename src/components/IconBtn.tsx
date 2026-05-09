@@ -8,9 +8,10 @@ type Props = {
   onClick?: MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
   className?: string;
+  fill?: boolean;
 };
 
-export function IconBtn({ name, size = 20, title, onClick, disabled, className = "" }: Props) {
+export function IconBtn({ name, size = 20, title, onClick, disabled, className = "", fill }: Props) {
   return (
     <button
       type="button"
@@ -21,7 +22,7 @@ export function IconBtn({ name, size = 20, title, onClick, disabled, className =
         disabled ? "opacity-30 cursor-not-allowed" : "opacity-80 hover:opacity-100 cursor-pointer"
       } ${className}`}
     >
-      <Icon name={name} size={size} />
+      <Icon name={name} size={size} fill={fill} />
     </button>
   );
 }

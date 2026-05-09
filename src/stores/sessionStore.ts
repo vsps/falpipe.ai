@@ -4,10 +4,12 @@ import type {
   PromptHistoryChannel,
   SequenceSidecar,
   ShotSidecar,
+  ShotStarredGroup,
 } from "../lib/types";
 import { cmd } from "../lib/tauri";
 
 type PromptScope = "sequence" | "shot";
+type ViewMode = "columns" | "starred";
 
 type State = {
   projectPath: string | null;
@@ -30,6 +32,10 @@ type State = {
 
   traceActive: { imagePath: string; traceSet: Set<string> } | null;
 
+  viewMode: ViewMode;
+  starredGroups: ShotStarredGroup[];
+  starredLoading: boolean;
+
   galleryHeight: number;
   thumbColWidth: number;
   logHeight: number;
@@ -51,6 +57,9 @@ type Actions = {
   setRenameImage: (path: string | null) => void;
   setImageDrag: (drag: State["imageDrag"]) => void;
   setTrace: (state: State["traceActive"]) => void;
+
+  setViewMode: (mode: ViewMode) => void;
+  rescanStarred: () => Promise<void>;
 
   navigatePromptHistory: (scope: PromptScope, delta: number) => void;
   snapToLive: (scope: PromptScope) => void;
@@ -100,6 +109,10 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
 
   traceActive: null,
 
+  viewMode: "columns",
+  starredGroups: [],
+  starredLoading: false,
+
   galleryHeight: 400,
   thumbColWidth: THUMB_W_MIN,
   logHeight: 78,
@@ -137,7 +150,11 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
         cursor: sidecar.promptHistory.length,
       },
       shotHistory: emptyChannel(),
+      starredGroups: [],
     });
+    if (get().viewMode === "starred") {
+      void get().rescanStarred();
+    }
   },
 
   async setShot(shotPath) {
@@ -165,6 +182,9 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
           ? s.targetVersion
           : latestVersion(columns),
     }));
+    if (get().viewMode === "starred") {
+      void get().rescanStarred();
+    }
   },
 
   setTargetVersion(version) {
@@ -220,6 +240,29 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
 
   setTrace(state) {
     set({ traceActive: state });
+  },
+
+  setViewMode(mode) {
+    set({ viewMode: mode });
+    if (mode === "starred") {
+      void get().rescanStarred();
+    }
+  },
+
+  async rescanStarred() {
+    const { sequencePath } = get();
+    if (!sequencePath) {
+      set({ starredGroups: [], starredLoading: false });
+      return;
+    }
+    set({ starredLoading: true });
+    try {
+      const groups = await cmd.sequence_starred_scan(sequencePath);
+      set({ starredGroups: groups, starredLoading: false });
+    } catch (e) {
+      set({ starredLoading: false });
+      throw e;
+    }
   },
 
   navigatePromptHistory(scope, delta) {

@@ -103,15 +103,18 @@ export async function computeTraceSet(imagePath: string): Promise<Set<string>> {
   return visited;
 }
 
-/** Add a gallery image to the current refs: copy to SRC/ (per current scope) then add (idempotent). */
+/** Add a gallery image to the current refs. Images already inside the current
+ *  shot tree (SRC or any v###) are referenced by path — no copy needed because
+ *  trace walks the file's existing sidecar. External imports still get copied
+ *  into SHOT SRC so they survive moves and have a stable home. */
 export async function addImageToRefs(imagePath: string): Promise<string> {
   const { shotPath } = useSessionStore.getState();
   if (!shotPath) throw new Error("no shot open");
-  // Skip the copy if the image already lives in any SRC/ folder under the project.
   const normalizedImg = imagePath.replaceAll("\\", "/");
-  const alreadyInSrc = normalizedImg.includes("/SRC/");
+  const normalizedShot = shotPath.replaceAll("\\", "/").replace(/\/+$/, "");
+  const insideShot = normalizedImg.startsWith(normalizedShot + "/");
   let finalPath = imagePath;
-  if (!alreadyInSrc) {
+  if (!insideShot) {
     finalPath = await cmd.ref_copy_to_src(shotPath, imagePath);
   }
   useGenerationStore.getState().addRefs([finalPath]);
@@ -139,7 +142,8 @@ export type ImageAction =
   | "open_location"
   | "delete"
   | "rename"
-  | "edit";
+  | "edit"
+  | "toggle_star";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "m4v", "avi"]);
 
@@ -286,6 +290,27 @@ export async function performImageAction(
       }
       const set = await computeTraceSet(path);
       session.setTrace({ imagePath: path, traceSet: set });
+      return;
+    }
+    case "toggle_star": {
+      try {
+        const existing = (await cmd
+          .image_metadata_read(path)
+          .catch(() => null)) as ImageMetadata | null;
+        const next = existing
+          ? { ...(existing as Record<string, unknown>), starred: !existing.starred }
+          : { starred: true };
+        await cmd.image_metadata_write(path, next);
+        await session.rescanShot();
+        if (
+          session.viewMode === "starred" &&
+          useSessionStore.getState().sequencePath
+        ) {
+          await useSessionStore.getState().rescanStarred();
+        }
+      } catch (e) {
+        await showMessage(String(e), { kind: "error" });
+      }
       return;
     }
     case "delete": {

@@ -110,6 +110,7 @@ export function GalleryColumn({
               onTrace={() => onImageAction("trace", img.path)}
               onEdit={() => onImageAction("edit", img.path)}
               onDelete={() => onImageAction("delete", img.path)}
+              onToggleStar={() => onImageAction("toggle_star", img.path)}
               onDragStart={onDragStart}
             />
           );

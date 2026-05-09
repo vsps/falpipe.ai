@@ -14,6 +14,7 @@ type Props = {
 
 const DEFAULT_ITEMS: AvailableAction[] = [
   "add_to_refs",
+  "toggle_star",
   "copy_path",
   "copy_image",
   "copy_prompt",
@@ -28,6 +29,7 @@ const DEFAULT_ITEMS: AvailableAction[] = [
 
 const LABELS: Record<AvailableAction, string> = {
   add_to_refs: "Add to references",
+  toggle_star: "Toggle star",
   copy_path: "Copy path",
   copy_image: "Copy image",
   copy_prompt: "Copy prompt",
@@ -92,7 +94,7 @@ export function PathContextMenu({
   return (
     <div
       ref={ref}
-      className="fixed z-50 bg-panel text-text border border-dim shadow-xl py-0.5 text-xs"
+      className="fixed z-50 bg-panel text-text border border-dim shadow-xl py-0.5 text-xs w-[80px]"
       style={{ left: pos.left, top: pos.top }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -101,7 +103,8 @@ export function PathContextMenu({
           key={a}
           type="button"
           onClick={run(a)}
-          className="w-full text-left px-1.5 py-[2px] hover:bg-accent"
+          title={LABELS[a]}
+          className="w-full text-left px-1.5 py-[2px] hover:bg-accent truncate"
         >
           {LABELS[a]}
         </button>

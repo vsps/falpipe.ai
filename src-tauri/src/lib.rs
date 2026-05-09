@@ -28,6 +28,7 @@ pub fn run() {
             commands::session::shot_create,
             commands::session::shot_rescan,
             commands::session::version_create_next,
+            commands::session::sequence_starred_scan,
             commands::session::ref_copy_to_src,
             commands::session::ref_copy_to_seq_src,
             commands::session::image_copy_to_dir,

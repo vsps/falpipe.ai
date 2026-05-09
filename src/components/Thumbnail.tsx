@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GalleryImage } from "../lib/types";
 import { IconBtn } from "./IconBtn";
+import { Icon } from "../lib/icon";
 import { fileSrc } from "../lib/assets";
 import { PathContextMenu } from "./PathContextMenu";
 
@@ -17,12 +18,15 @@ type Props = {
   onTrace: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onToggleStar: () => void;
   onDragStart: (payload: {
     fromPath: string;
     fromColumnVersion: string;
     pointerEvent: React.PointerEvent;
   }) => void;
   traceActive?: boolean;
+  /** Disables drag start. Used in the starred view where drag-to-column has no destination. */
+  dragDisabled?: boolean;
 };
 
 const DRAG_THRESHOLD_PX = 5;
@@ -40,8 +44,10 @@ export function Thumbnail({
   onTrace,
   onEdit,
   onDelete,
+  onToggleStar,
   onDragStart,
   traceActive,
+  dragDisabled,
 }: Props) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   // Aspect = height/width. Initial 1 (square) while we probe the natural size,
@@ -64,6 +70,7 @@ export function Thumbnail({
   // pointer has moved past the threshold. Below threshold = the click handler runs.
   function onPointerDown(e: React.PointerEvent) {
     if (e.button !== 0) return;
+    if (dragDisabled) return;
     const tgt = e.target as HTMLElement;
     if (tgt.closest("button")) return;
     const startX = e.clientX;
@@ -152,6 +159,13 @@ export function Thumbnail({
           play_circle
         </span>
       )}
+      {image.starred && (
+        <span
+          className="absolute bottom-1 left-1 text-accent drop-shadow pointer-events-none group-hover:opacity-0 transition-opacity"
+        >
+          <Icon name="visibility" size={18} fill />
+        </span>
+      )}
 
       {/* Action strip — top */}
       <div
@@ -159,6 +173,14 @@ export function Thumbnail({
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
+        <IconBtn
+          name="visibility"
+          size={16}
+          fill={!!image.starred}
+          title={image.starred ? "Demote from gallery" : "Promote to gallery"}
+          onClick={onToggleStar}
+          className={image.starred ? "text-accent" : ""}
+        />
         <IconBtn name="zoom_in" size={16} title="Zoom" onClick={onZoom} />
         <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
         <IconBtn name="copy_all" size={16} title="Reuse prompt" onClick={onCopySettings} />

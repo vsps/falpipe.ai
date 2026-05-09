@@ -3,7 +3,8 @@ import type { GalleryImage } from "../lib/types";
 import { GalleryColumn, type DragState } from "./GalleryColumn";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { RenameImageModal } from "./RenameImageModal";
-import { IconBtn } from "./IconBtn";
+import { StarredView } from "./StarredView";
+import { Icon } from "../lib/icon";
 import { ResizeBar } from "./ResizeBar";
 import { useSessionStore } from "../stores/sessionStore";
 import { addImageToRefs, performImageAction, type ImageAction } from "../lib/actions";
@@ -39,6 +40,9 @@ export function Gallery() {
     renameImagePath,
     setRenameImage,
     shotPath,
+    sequencePath,
+    viewMode,
+    setViewMode,
   } = session;
 
   const flatImages = columns.flatMap((c) => c.images);
@@ -297,6 +301,31 @@ export function Gallery() {
     }
   }
 
+  const splitButtons = (
+    <div className="flex shrink-0 self-stretch">
+      {viewMode === "columns" && session.shotPath && (
+        <button
+          className="accent-hover px-3 py-2 flex items-center justify-center"
+          title="Add new version"
+          onClick={onAddNewVersion}
+        >
+          <Icon name="add" size={22} />
+        </button>
+      )}
+      {sequencePath && (
+        <button
+          className={`${
+            viewMode === "starred" ? "bg-accent" : "accent-hover"
+          } px-3 py-2 flex items-center justify-center`}
+          title={viewMode === "starred" ? "Back to versions" : "View starred"}
+          onClick={() => setViewMode(viewMode === "starred" ? "columns" : "starred")}
+        >
+          <Icon name="visibility" size={22} fill={viewMode === "starred"} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex flex-1 min-h-0 min-w-0 gap-gallery-surface bg-gallery-surface">
       {traceActive && (
@@ -307,46 +336,45 @@ export function Gallery() {
           </button>
         </div>
       )}
-      <div className="flex flex-1 min-w-0 gap-gallery-surface overflow-x-auto overflow-y-hidden thin-scroll min-h-0">
-        {columns.length === 0 ? (
-          <div className="text-sm text-dim p-4">Open a shot to see its versions.</div>
-        ) : (
-          <>
-            {columns.map((c, i) => (
-              <React.Fragment key={c.version}>
-                <GalleryColumn
-                  column={c}
-                  width={thumbColWidth}
-                  destDir={destDirFor(c)}
-                  dragState={dragState}
-                  onFolderDelete={() => onFolderDelete(c.version)}
-                  onImageAction={onImageAction}
-                  onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
-                  onDragStart={onDragStart}
-                />
-                {i < columns.length - 1 && (
-                  <ResizeBar
-                    orientation="vertical"
-                    value={thumbColWidth}
-                    onChange={setThumbColWidth}
-                    grow="right"
+      {viewMode === "starred" ? (
+        <>
+          <StarredView onDragStart={onDragStart} />
+          {splitButtons}
+        </>
+      ) : (
+        <div className="flex flex-1 min-w-0 gap-gallery-surface overflow-x-auto overflow-y-hidden thin-scroll min-h-0">
+          {columns.length === 0 ? (
+            <div className="text-sm text-dim p-4">Open a shot to see its versions.</div>
+          ) : (
+            <>
+              {columns.map((c, i) => (
+                <React.Fragment key={c.version}>
+                  <GalleryColumn
+                    column={c}
+                    width={thumbColWidth}
+                    destDir={destDirFor(c)}
+                    dragState={dragState}
+                    onFolderDelete={() => onFolderDelete(c.version)}
+                    onImageAction={onImageAction}
+                    onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
+                    onDragStart={onDragStart}
                   />
-                )}
-              </React.Fragment>
-            ))}
-            {session.shotPath && (
-              <button
-                className="accent-hover px-3 py-2 flex items-center justify-center shrink-0"
-                title="Add new version"
-                onClick={onAddNewVersion}
-              >
-                <IconBtn name="add" size={22} />
-              </button>
-            )}
-            <div className="shrink-0 w-[200px]" />
-          </>
-        )}
-      </div>
+                  {i < columns.length - 1 && (
+                    <ResizeBar
+                      orientation="vertical"
+                      value={thumbColWidth}
+                      onChange={setThumbColWidth}
+                      grow="right"
+                    />
+                  )}
+                </React.Fragment>
+              ))}
+              {splitButtons}
+              <div className="shrink-0 w-[200px]" />
+            </>
+          )}
+        </div>
+      )}
 
       {dragState && (
         <div

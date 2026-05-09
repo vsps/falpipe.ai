@@ -274,6 +274,17 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
     Ok(cols)
 }
 
+/// Read just the `starred` boolean from a sidecar JSON. Returns None if the
+/// sidecar is missing, unreadable, or has no `starred` field.
+fn read_starred(meta_path: &Path) -> Option<bool> {
+    if !meta_path.is_file() {
+        return None;
+    }
+    let text = std::fs::read_to_string(meta_path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    v.get("starred").and_then(|x| x.as_bool())
+}
+
 fn scan_directory_images(dir: &Path) -> AppResult<Vec<GalleryImage>> {
     let mut out: Vec<GalleryImage> = Vec::new();
     for e in std::fs::read_dir(dir)? {
@@ -316,12 +327,14 @@ fn scan_directory_images(dir: &Path) -> AppResult<Vec<GalleryImage>> {
         } else {
             None
         };
+        let starred = read_starred(&meta_path);
         out.push(GalleryImage {
             filename,
             path: as_str(&path),
             metadata_path: as_str(&meta_path),
             is_video,
             thumb_path,
+            starred,
         });
     }
     out.sort_by(|a, b| a.filename.cmp(&b.filename));
@@ -348,6 +361,51 @@ pub fn version_create_next(shot_path: String) -> AppResult<String> {
     let next = format!("v{:03}", max_n + 1);
     ensure_dir(&root.join(&next))?;
     Ok(next)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShotStarredGroup {
+    pub shot_path: String,
+    pub shot_name: String,
+    pub images: Vec<GalleryImage>,
+}
+
+#[tauri::command]
+pub fn sequence_starred_scan(sequence_path: String) -> AppResult<Vec<ShotStarredGroup>> {
+    let root = PathBuf::from(&sequence_path);
+    if !root.is_dir() {
+        return Err(AppError::Msg(format!("not a directory: {sequence_path}")));
+    }
+    let mut out: Vec<ShotStarredGroup> = Vec::new();
+    for shot_dir in list_dirs(&root)? {
+        // Skip the sequence-level SRC pseudo-shot.
+        let name = match shot_dir.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        if name == SRC_DIR {
+            continue;
+        }
+        let mut starred: Vec<GalleryImage> = Vec::new();
+        // Walk every direct subdir of the shot (SRC + v###) for starred images.
+        for sub in list_dirs(&shot_dir)? {
+            let imgs = scan_directory_images(&sub)?;
+            for img in imgs {
+                if img.starred == Some(true) {
+                    starred.push(img);
+                }
+            }
+        }
+        if !starred.is_empty() {
+            out.push(ShotStarredGroup {
+                shot_path: as_str(&shot_dir),
+                shot_name: name,
+                images: starred,
+            });
+        }
+    }
+    Ok(out)
 }
 
 #[tauri::command]

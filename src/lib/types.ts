@@ -110,6 +110,13 @@ export type GalleryImage = {
   metadataPath: string;
   isVideo: boolean;
   thumbPath?: string;
+  starred?: boolean;
+};
+
+export type ShotStarredGroup = {
+  shotPath: string;
+  shotName: string;
+  images: GalleryImage[];
 };
 
 export type GalleryColumn = {
@@ -240,6 +247,7 @@ export type ImageMetadata = {
   falResponse?: unknown;
   hueShift?: number;
   sourceImage?: string;
+  starred?: boolean;
 };
 
 // ---------- Generation events ----------

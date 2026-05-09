@@ -267,6 +267,8 @@ pub struct GalleryImage {
     pub is_video: bool,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub thumb_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub starred: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
