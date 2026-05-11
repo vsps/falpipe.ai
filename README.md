@@ -52,15 +52,21 @@ Prereqs:
 - Windows: Microsoft C++ Build Tools + WebView2 (bundled with Windows 11)
 - A [fal.ai API key](https://fal.ai/dashboard/keys)
 
+Active development happens on the `dev` branch — that's where the latest features land. `main` is the stable baseline that lags behind. Clone `dev` to get everything new:
+
 ```bash
-git clone https://github.com/vsps/falpipe.git
-cd falpipe
+git clone -b dev https://github.com/vsps/falpipe.ai.git
+cd falpipe.ai
 pnpm install
 pnpm tauri dev       # run
 pnpm tauri build     # produce an installer in src-tauri/target/release/bundle
 ```
 
+To pull updates later: `git pull` from inside the `dev` branch.
+
 ### A test build can be found here (WINDOWS ONLY): https://github.com/vsps/falpipe.ai/releases
+
+Note: the build on releases tracks `main`, so it may not include the latest `dev` changes. Build from source for the freshest version.
 
 
 ## Configure
