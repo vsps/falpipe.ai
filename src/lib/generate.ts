@@ -309,23 +309,29 @@ async function runJob(spec: JobSpec): Promise<void> {
     );
     const versionDir = joinPath(spec.shotPath, spec.targetVersion);
 
-    const batched = !!spec.node.batch_field && spec.iterations > 1;
     const totalOutputs: string[] = [];
 
     gen.updateJob(spec.id, { status: "running" });
 
-    if (batched) {
-      const args = { ...baseArgs, [spec.node.batch_field!]: spec.iterations };
-      reportProgress(spec.id, 1, spec.iterations, { kind: "running" });
+    // Always loop over iterations. The model's batch_field (if any) flows
+    // through baseArgs from buildArgs() — honoring whatever value the user
+    // set, rather than overriding it to the iteration count.
+    for (let k = 1; k <= spec.iterations; k++) {
+      if (controller.signal.aborted) break;
+      gen.updateJob(spec.id, {
+        status: "running",
+        currentIteration: k,
+        progressMessage: `Generating (${k}/${spec.iterations})…`,
+      });
       const out = await provider.run(
         spec.node.endpoint,
-        args,
+        baseArgs,
         controller.signal,
-        (e) => reportProgress(spec.id, 1, spec.iterations, e),
+        (e) => reportProgress(spec.id, k, spec.iterations, e),
       );
       gen.updateJob(spec.id, {
         status: "downloading",
-        progressMessage: "Downloading…",
+        progressMessage: `Downloading (${k}/${spec.iterations})…`,
       });
       const outs = await downloadAndWrite({
         out,
@@ -338,54 +344,17 @@ async function runJob(spec: JobSpec): Promise<void> {
         shotPath: spec.shotPath,
         versionDir,
         targetVersion: spec.targetVersion,
-        iterationBase: 1,
+        iterationBase: k,
         iterationTotal: spec.iterations,
-        expandToIterations: true,
+        expandToIterations: false,
         ffmpegPath: spec.ffmpegPath,
         filenameTemplate: spec.filenameTemplate,
       });
       totalOutputs.push(...outs);
-    } else {
-      for (let k = 1; k <= spec.iterations; k++) {
-        if (controller.signal.aborted) break;
-        gen.updateJob(spec.id, {
-          status: "running",
-          currentIteration: k,
-          progressMessage: `Generating (${k}/${spec.iterations})…`,
-        });
-        const out = await provider.run(
-          spec.node.endpoint,
-          baseArgs,
-          controller.signal,
-          (e) => reportProgress(spec.id, k, spec.iterations, e),
-        );
-        gen.updateJob(spec.id, {
-          status: "downloading",
-          progressMessage: `Downloading (${k}/${spec.iterations})…`,
-        });
-        const outs = await downloadAndWrite({
-          out,
-          node: spec.node,
-          sequencePrompt: spec.sequencePrompt,
-          shotPrompt: spec.shotPrompt,
-          shotPrompts: spec.shotPrompts,
-          settings: spec.settings,
-          refs: uploaded,
-          shotPath: spec.shotPath,
-          versionDir,
-          targetVersion: spec.targetVersion,
-          iterationBase: k,
-          iterationTotal: spec.iterations,
-          expandToIterations: false,
-          ffmpegPath: spec.ffmpegPath,
-          filenameTemplate: spec.filenameTemplate,
-        });
-        totalOutputs.push(...outs);
-        // Rescan only when the freshly-written shot is what the user is viewing;
-        // otherwise the gallery would briefly flicker to the job's shot.
-        if (useSessionStore.getState().shotPath === spec.shotPath) {
-          await useSessionStore.getState().rescanShot();
-        }
+      // Rescan only when the freshly-written shot is what the user is viewing;
+      // otherwise the gallery would briefly flicker to the job's shot.
+      if (useSessionStore.getState().shotPath === spec.shotPath) {
+        await useSessionStore.getState().rescanShot();
       }
     }
 

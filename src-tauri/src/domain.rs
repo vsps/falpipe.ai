@@ -251,11 +251,16 @@ pub struct ShotSidecar {
     pub prompt_history: Vec<PromptEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectSidecar {
+    #[serde(default)]
     pub title: String,
+    #[serde(default)]
     pub created: String,
+    /// Forward-slash paths relative to project root for images marked visible.
+    #[serde(default)]
+    pub visible: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

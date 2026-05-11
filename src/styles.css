@@ -104,6 +104,10 @@ textarea {
 .thin-scroll::-webkit-scrollbar-thumb {
   background: var(--color-handle);
   border-radius: 3px;
+  transition: background-color 150ms ease;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
 }
 .thin-scroll::-webkit-scrollbar-track {
   background: transparent;

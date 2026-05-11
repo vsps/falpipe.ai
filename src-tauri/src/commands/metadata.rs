@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
+use crate::commands::session::visible_set_remove_path_or_prefix;
 use crate::error::{AppError, AppResult};
 
 #[tauri::command]
@@ -48,6 +49,7 @@ pub fn image_delete(image_path: String) -> AppResult<()> {
     if thumb.exists() {
         let _ = std::fs::remove_file(&thumb);
     }
+    visible_set_remove_path_or_prefix(&p, false)?;
     Ok(())
 }
 
@@ -57,6 +59,7 @@ pub fn column_delete(column_path: String) -> AppResult<()> {
     if p.is_dir() {
         std::fs::remove_dir_all(&p)?;
     }
+    visible_set_remove_path_or_prefix(&p, true)?;
     Ok(())
 }
 

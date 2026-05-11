@@ -74,7 +74,7 @@ type Actions = {
 
 const GALLERY_H_MIN = 120;
 const GALLERY_H_MAX = 1200;
-const THUMB_W_MIN = 130;
+const THUMB_W_MIN = 154;
 const THUMB_W_MAX = 400;
 const LOG_H_MIN = 24;
 const LOG_H_MAX = 600;
@@ -154,6 +154,9 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
     });
     if (get().viewMode === "starred") {
       void get().rescanStarred();
+    }
+    if (shots.length > 0) {
+      await get().setShot(shots[shots.length - 1]);
     }
   },
 

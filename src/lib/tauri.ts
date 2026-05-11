@@ -7,7 +7,6 @@ import type {
   SequenceSidecar,
   ShotSidecar,
   ImageMetadata,
-  ShotStarredGroup,
   SeqStarredGroup,
 } from "./types";
 
@@ -52,11 +51,11 @@ export const cmd = {
   shot_rescan: (shotPath: string): Promise<GalleryColumn[]> =>
     rawInvoke("shot_rescan", { shotPath }),
 
-  sequence_starred_scan: (sequencePath: string): Promise<ShotStarredGroup[]> =>
-    rawInvoke("sequence_starred_scan", { sequencePath }),
-
   project_starred_scan: (projectPath: string): Promise<SeqStarredGroup[]> =>
     rawInvoke("project_starred_scan", { projectPath }),
+
+  image_set_visible: (imagePath: string, visible: boolean): Promise<void> =>
+    rawInvoke("image_set_visible", { imagePath, visible }),
 
   sequence_prompt_append: (
     sequencePath: string,

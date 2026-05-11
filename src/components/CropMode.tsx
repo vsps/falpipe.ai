@@ -28,26 +28,85 @@ const HANDLES: { id: Exclude<Handle, "move">; cursor: string; style: React.CSSPr
   { id: "br", cursor: "nwse-resize", style: { bottom: -4, right: -4 } },
 ];
 
-function applyDrag(handle: Handle, start: Rect, dx: number, dy: number, imgW: number, imgH: number): Rect {
-  let { x, y, w, h } = start;
+function applyDrag(
+  handle: Handle,
+  start: Rect,
+  dx: number,
+  dy: number,
+  imgW: number,
+  imgH: number,
+  lockAspect: boolean,
+): Rect {
   if (handle === "move") {
-    return { x: Math.max(0, Math.min(imgW - w, x + dx)), y: Math.max(0, Math.min(imgH - h, y + dy)), w, h };
+    return {
+      x: Math.max(0, Math.min(imgW - start.w, start.x + dx)),
+      y: Math.max(0, Math.min(imgH - start.h, start.y + dy)),
+      w: start.w,
+      h: start.h,
+    };
   }
-  if (handle === "tl" || handle === "ml" || handle === "bl") {
-    const nx = Math.max(0, Math.min(x + w - MIN, x + dx));
-    w = x + w - nx; x = nx;
+
+  if (!lockAspect) {
+    let { x, y, w, h } = start;
+    if (handle === "tl" || handle === "ml" || handle === "bl") {
+      const nx = Math.max(0, Math.min(x + w - MIN, x + dx));
+      w = x + w - nx; x = nx;
+    }
+    if (handle === "tr" || handle === "mr" || handle === "br") {
+      w = Math.max(MIN, Math.min(imgW - x, w + dx));
+    }
+    if (handle === "tl" || handle === "tc" || handle === "tr") {
+      const ny = Math.max(0, Math.min(y + h - MIN, y + dy));
+      h = y + h - ny; y = ny;
+    }
+    if (handle === "bl" || handle === "bc" || handle === "br") {
+      h = Math.max(MIN, Math.min(imgH - y, h + dy));
+    }
+    return { x, y, w, h };
   }
-  if (handle === "tr" || handle === "mr" || handle === "br") {
-    w = Math.max(MIN, Math.min(imgW - x, w + dx));
+
+  // Aspect-locked path. Lock to the source image aspect ratio.
+  const ar = imgW / imgH;
+  const { x: sx, y: sy, w: sw, h: sh } = start;
+  const fixedR = sx + sw;
+  const fixedB = sy + sh;
+  const cx = sx + sw / 2;
+  const cy = sy + sh / 2;
+
+  let newW: number, newH: number, newX: number, newY: number;
+
+  if (handle === "tc" || handle === "bc") {
+    newH = Math.max(MIN, sh + (handle === "tc" ? -dy : dy));
+    newW = newH * ar;
+    newX = cx - newW / 2;
+    newY = handle === "tc" ? fixedB - newH : sy;
+  } else if (handle === "ml" || handle === "mr") {
+    newW = Math.max(MIN, sw + (handle === "ml" ? -dx : dx));
+    newH = newW / ar;
+    newX = handle === "ml" ? fixedR - newW : sx;
+    newY = cy - newH / 2;
+  } else {
+    // Corner — dominant axis wins, opposite corner stays anchored.
+    const anchorRight = handle === "tl" || handle === "bl";
+    const anchorBottom = handle === "tl" || handle === "tr";
+    const candW = sw + (anchorRight ? -dx : dx);
+    const candH = sh + (anchorBottom ? -dy : dy);
+    if (candW / sw > candH / sh) {
+      newW = Math.max(MIN, candW);
+      newH = newW / ar;
+    } else {
+      newH = Math.max(MIN, candH);
+      newW = newH * ar;
+    }
+    newX = anchorRight ? fixedR - newW : sx;
+    newY = anchorBottom ? fixedB - newH : sy;
   }
-  if (handle === "tl" || handle === "tc" || handle === "tr") {
-    const ny = Math.max(0, Math.min(y + h - MIN, y + dy));
-    h = y + h - ny; y = ny;
-  }
-  if (handle === "bl" || handle === "bc" || handle === "br") {
-    h = Math.max(MIN, Math.min(imgH - y, h + dy));
-  }
-  return { x, y, w, h };
+
+  // If the proposed rect leaves the image, reject — keep the previous state.
+  if (newW < MIN || newH < MIN) return start;
+  if (newX < 0 || newY < 0 || newX + newW > imgW || newY + newH > imgH) return start;
+
+  return { x: newX, y: newY, w: newW, h: newH };
 }
 
 export function CropMode({ image, onSave, onCancel }: Props) {
@@ -89,7 +148,7 @@ export function CropMode({ image, onSave, onCancel }: Props) {
   function onMove(e: React.PointerEvent) {
     const d = dragRef.current;
     if (!d) return;
-    setCrop(applyDrag(d.handle, d.startCrop, e.clientX - d.startX, e.clientY - d.startY, d.imgW, d.imgH));
+    setCrop(applyDrag(d.handle, d.startCrop, e.clientX - d.startX, e.clientY - d.startY, d.imgW, d.imgH, !e.shiftKey));
   }
 
   function stopDrag(e: React.PointerEvent) {
@@ -206,6 +265,7 @@ export function CropMode({ image, onSave, onCancel }: Props) {
             {Math.round(crop.w / ib.width * naturalSize[0])} × {Math.round(crop.h / ib.height * naturalSize[1])} px
           </span>
         )}
+        <span className="text-xs text-dim">hold Shift for free aspect</span>
         <div className="flex-1" />
         <button
           onClick={() => void save()}

@@ -4,6 +4,7 @@ import { GalleryColumn, type DragState } from "./GalleryColumn";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { RenameImageModal } from "./RenameImageModal";
 import { StarredView } from "./StarredView";
+import { TraceView } from "./TraceView";
 import { Icon } from "../lib/icon";
 import { ResizeBar } from "./ResizeBar";
 import { useSessionStore } from "../stores/sessionStore";
@@ -33,6 +34,7 @@ export function Gallery() {
   const {
     columns,
     traceActive,
+    selectedImagePath,
     thumbColWidth,
     setThumbColWidth,
     zoomImagePath,
@@ -302,7 +304,7 @@ export function Gallery() {
   }
 
   const splitButtons = (
-    <div className="flex shrink-0 self-stretch">
+    <div className="flex flex-col shrink-0 self-stretch">
       {viewMode === "columns" && session.shotPath && (
         <button
           className="accent-hover px-3 py-2 flex items-center justify-center"
@@ -323,20 +325,35 @@ export function Gallery() {
           <Icon name="visibility" size={22} fill={viewMode === "starred"} />
         </button>
       )}
+      {selectedImagePath && (
+        <button
+          className={`${traceActive ? "bg-accent" : "accent-hover"} px-3 py-2 flex items-center justify-center`}
+          title={traceActive ? "Exit trace" : "Trace origins"}
+          onClick={() => onImageAction("trace", selectedImagePath)}
+        >
+          <Icon name="conversion_path" size={22} fill={!!traceActive} />
+        </button>
+      )}
+      {selectedImagePath && (
+        <button
+          className="accent-hover px-3 py-2 flex items-center justify-center"
+          title="Delete selected"
+          onClick={() => onImageAction("delete", selectedImagePath)}
+        >
+          <Icon name="delete" size={22} />
+        </button>
+      )}
     </div>
   );
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 gap-gallery-surface bg-gallery-surface">
-      {traceActive && (
-        <div className="absolute top-[80px] right-2 z-10 bg-warn/90 text-text px-2 py-1 text-xs font-mono">
-          tracing · {traceActive.traceSet.size} images ·{" "}
-          <button className="underline" onClick={() => session.setTrace(null)}>
-            exit (Esc)
-          </button>
-        </div>
-      )}
-      {viewMode === "starred" ? (
+      {traceActive ? (
+        <>
+          <TraceView onDragStart={onDragStart} />
+          {splitButtons}
+        </>
+      ) : viewMode === "starred" ? (
         <>
           <StarredView onDragStart={onDragStart} />
           {splitButtons}
@@ -347,28 +364,25 @@ export function Gallery() {
             <div className="text-sm text-dim p-4">Open a shot to see its versions.</div>
           ) : (
             <>
-              {columns.map((c, i) => (
-                <React.Fragment key={c.version}>
-                  <GalleryColumn
-                    column={c}
-                    width={thumbColWidth}
-                    destDir={destDirFor(c)}
-                    dragState={dragState}
-                    onFolderDelete={() => onFolderDelete(c.version)}
-                    onImageAction={onImageAction}
-                    onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
-                    onDragStart={onDragStart}
-                  />
-                  {i < columns.length - 1 && (
-                    <ResizeBar
-                      orientation="vertical"
-                      value={thumbColWidth}
-                      onChange={setThumbColWidth}
-                      grow="right"
-                    />
-                  )}
-                </React.Fragment>
+              {columns.map((c) => (
+                <GalleryColumn
+                  key={c.version}
+                  column={c}
+                  width={thumbColWidth}
+                  destDir={destDirFor(c)}
+                  dragState={dragState}
+                  onFolderDelete={() => onFolderDelete(c.version)}
+                  onImageAction={onImageAction}
+                  onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
+                  onDragStart={onDragStart}
+                />
               ))}
+              <ResizeBar
+                orientation="vertical"
+                value={thumbColWidth}
+                onChange={setThumbColWidth}
+                grow="right"
+              />
               {splitButtons}
               <div className="shrink-0 w-[200px]" />
             </>

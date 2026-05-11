@@ -15,10 +15,8 @@ type Props = {
   onZoom: () => void;
   onAddToRefs: () => void;
   onCopySettings: () => void;
-  onTrace: () => void;
   onEdit: () => void;
   onCrop?: () => void;
-  onDelete: () => void;
   onToggleStar: () => void;
   onDragStart: (payload: {
     fromPath: string;
@@ -42,13 +40,10 @@ export function Thumbnail({
   onZoom,
   onAddToRefs,
   onCopySettings,
-  onTrace,
   onEdit,
   onCrop,
-  onDelete,
   onToggleStar,
   onDragStart,
-  traceActive,
   dragDisabled,
 }: Props) {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -107,7 +102,7 @@ export function Thumbnail({
       ref={rootRef}
       className={`group relative w-full shrink-0 overflow-hidden cursor-pointer border ${
         selected ? "border-accent" : "border-transparent"
-      } ${traceActive ? "ring-2 ring-warn" : ""} ${isDragSource ? "opacity-40" : ""} bg-bg`}
+      } ${isDragSource ? "opacity-40" : ""} bg-bg`}
       style={{ paddingBottom: `${aspect * 100}%` }}
       onPointerDown={onPointerDown}
       onClick={(e) => {
@@ -186,7 +181,6 @@ export function Thumbnail({
         <IconBtn name="zoom_in" size={16} title="Zoom" onClick={onZoom} />
         <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
         <IconBtn name="copy_all" size={16} title="Reuse prompt" onClick={onCopySettings} />
-        <IconBtn name="conversion_path" size={16} title="Trace" onClick={onTrace} />
         {!image.isVideo && onCrop && (
           <IconBtn name="crop" size={16} title="Crop" onClick={onCrop} />
         )}
@@ -195,14 +189,6 @@ export function Thumbnail({
         )}
       </div>
 
-      {/* Delete — bottom right */}
-      <div
-        className="absolute bottom-1 right-1 bg-bg/80 px-[2px] py-[1px] opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <IconBtn name="delete" size={16} title="Delete" onClick={onDelete} />
-      </div>
       {menuPos && (
         <PathContextMenu
           x={menuPos.x}

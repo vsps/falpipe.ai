@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
@@ -53,6 +54,78 @@ fn ensure_dir(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
+/// Walk up the parent chain and return the *topmost* ancestor that contains a
+/// `project.json`. Going to the top (rather than stopping at the first hit)
+/// protects against orphan sidecars accidentally left inside a project — e.g.,
+/// from a folder that was once opened as a standalone project.
+fn project_root_for(path: &Path) -> AppResult<PathBuf> {
+    let mut found: Option<PathBuf> = None;
+    let mut cur: Option<&Path> = Some(path);
+    while let Some(p) = cur {
+        if p.join(PROJECT_SIDECAR).is_file() {
+            found = Some(p.to_path_buf());
+        }
+        cur = p.parent();
+    }
+    found.ok_or_else(|| AppError::Msg(format!("no project root for {}", as_str(path))))
+}
+
+/// Forward-slash path relative to project root. Returns None if `path` is not
+/// underneath `project_root`.
+fn relativize(path: &Path, project_root: &Path) -> Option<String> {
+    let p = path.canonicalize().ok().unwrap_or_else(|| path.to_path_buf());
+    let r = project_root
+        .canonicalize()
+        .ok()
+        .unwrap_or_else(|| project_root.to_path_buf());
+    let stripped = p.strip_prefix(&r).ok()?;
+    Some(as_str(stripped))
+}
+
+fn load_visible_set(project_root: &Path) -> AppResult<HashSet<String>> {
+    let sidecar: ProjectSidecar = read_sidecar(&project_root.join(PROJECT_SIDECAR))?;
+    Ok(sidecar.visible.into_iter().collect())
+}
+
+fn save_visible_set(project_root: &Path, visible: &HashSet<String>) -> AppResult<()> {
+    let path = project_root.join(PROJECT_SIDECAR);
+    let mut sidecar: ProjectSidecar = read_sidecar(&path)?;
+    let mut v: Vec<String> = visible.iter().cloned().collect();
+    v.sort();
+    sidecar.visible = v;
+    write_sidecar_atomic(&path, &sidecar)
+}
+
+/// Remove an image (or all images under a directory) from the project's visible
+/// set. Best-effort: silently skips if the path is outside any project.
+pub fn visible_set_remove_path_or_prefix(path: &Path, is_dir_prefix: bool) -> AppResult<()> {
+    let root = match project_root_for(path) {
+        Ok(r) => r,
+        Err(_) => return Ok(()),
+    };
+    let target = match path
+        .strip_prefix(&root)
+        .ok()
+        .map(as_str)
+        .or_else(|| relativize(path, &root))
+    {
+        Some(t) => t,
+        None => return Ok(()),
+    };
+    let mut set = load_visible_set(&root)?;
+    let before = set.len();
+    if is_dir_prefix {
+        let prefix = format!("{}/", target.trim_end_matches('/'));
+        set.retain(|p| !p.starts_with(&prefix));
+    } else {
+        set.remove(&target);
+    }
+    if set.len() != before {
+        save_visible_set(&root, &set)?;
+    }
+    Ok(())
+}
+
 fn list_dirs(root: &Path) -> AppResult<Vec<PathBuf>> {
     if !root.is_dir() {
         return Ok(vec![]);
@@ -98,6 +171,7 @@ pub fn project_open(project_path: String) -> AppResult<Vec<String>> {
             &ProjectSidecar {
                 title,
                 created: Utc::now().to_rfc3339(),
+                visible: vec![],
             },
         )?;
     }
@@ -178,6 +252,7 @@ pub fn shot_rescan(shot_path: String) -> AppResult<Vec<GalleryColumn>> {
 pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
     let target = PathBuf::from(&sequence_path).join(sanitize(&name));
     ensure_dir(&target)?;
+    ensure_dir(&target.join("v001"))?;
     let sidecar_path = target.join(SHOT_SIDECAR);
     if !sidecar_path.exists() {
         write_sidecar_atomic(
@@ -193,12 +268,18 @@ pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
 
 fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
     let mut cols: Vec<GalleryColumn> = Vec::new();
+    let project_root = project_root_for(root).ok();
+    let visible = project_root
+        .as_ref()
+        .map(|r| load_visible_set(r))
+        .transpose()?
+        .unwrap_or_default();
 
     // Include the project-level SRC as "GLOBAL SRC" (shot → seq → project).
     if let Some(project) = root.parent().and_then(|s| s.parent()) {
         let global_src = project.join(SRC_DIR);
         if global_src.is_dir() {
-            let images = scan_directory_images(&global_src)?;
+            let images = scan_directory_images(&global_src, project_root.as_deref(), &visible)?;
             cols.push(GalleryColumn {
                 id: as_str(&global_src),
                 version: "GLOBAL SRC".to_string(),
@@ -224,7 +305,7 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
         if name.starts_with('.') || name.starts_with('$') {
             continue;
         }
-        let images = scan_directory_images(&p)?;
+        let images = scan_directory_images(&p, project_root.as_deref(), &visible)?;
         cols.push(GalleryColumn {
             id: name.clone(),
             version: name,
@@ -243,18 +324,11 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
     Ok(cols)
 }
 
-/// Read just the `starred` boolean from a sidecar JSON. Returns None if the
-/// sidecar is missing, unreadable, or has no `starred` field.
-fn read_starred(meta_path: &Path) -> Option<bool> {
-    if !meta_path.is_file() {
-        return None;
-    }
-    let text = std::fs::read_to_string(meta_path).ok()?;
-    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
-    v.get("starred").and_then(|x| x.as_bool())
-}
-
-fn scan_directory_images(dir: &Path) -> AppResult<Vec<GalleryImage>> {
+fn scan_directory_images(
+    dir: &Path,
+    project_root: Option<&Path>,
+    visible: &HashSet<String>,
+) -> AppResult<Vec<GalleryImage>> {
     let mut out: Vec<GalleryImage> = Vec::new();
     for e in std::fs::read_dir(dir)? {
         let entry = e?;
@@ -296,7 +370,9 @@ fn scan_directory_images(dir: &Path) -> AppResult<Vec<GalleryImage>> {
         } else {
             None
         };
-        let starred = read_starred(&meta_path);
+        let starred = project_root
+            .and_then(|r| relativize(&path, r))
+            .map(|rel| visible.contains(&rel));
         out.push(GalleryImage {
             filename,
             path: as_str(&path),
@@ -348,93 +424,111 @@ pub struct SeqStarredGroup {
     pub shots: Vec<ShotStarredGroup>,
 }
 
+fn make_gallery_image(abs_path: &Path) -> Option<GalleryImage> {
+    let filename = abs_path.file_name().and_then(|n| n.to_str())?.to_string();
+    if filename.ends_with(".thumb.png") {
+        return None;
+    }
+    let ext = abs_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    let is_image = IMAGE_EXTS.iter().any(|e| *e == ext);
+    let is_video = VIDEO_EXTS.iter().any(|e| *e == ext);
+    if !is_image && !is_video {
+        return None;
+    }
+    let stem = abs_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
+    let meta_path = abs_path.with_file_name(format!("{stem}.json"));
+    let thumb_path = if is_video {
+        let t = abs_path.with_file_name(format!("{stem}.thumb.png"));
+        if t.exists() { Some(as_str(&t)) } else { None }
+    } else {
+        None
+    };
+    Some(GalleryImage {
+        filename,
+        path: as_str(abs_path),
+        metadata_path: as_str(&meta_path),
+        is_video,
+        thumb_path,
+        starred: Some(true),
+    })
+}
+
 #[tauri::command]
 pub fn project_starred_scan(project_path: String) -> AppResult<Vec<SeqStarredGroup>> {
     let root = PathBuf::from(&project_path);
     if !root.is_dir() {
         return Err(AppError::Msg(format!("not a directory: {project_path}")));
     }
-    let mut out: Vec<SeqStarredGroup> = Vec::new();
-    for seq_dir in list_dirs(&root)? {
-        let seq_name = match seq_dir.file_name().and_then(|n| n.to_str()) {
-            Some(n) => n.to_string(),
-            None => continue,
-        };
-        if seq_name == SRC_DIR {
+    let visible = load_visible_set(&root)?;
+
+    // Group by (seq, shot) preserving sorted order.
+    use std::collections::BTreeMap;
+    type ShotMap = BTreeMap<String, Vec<GalleryImage>>;
+    let mut by_seq: BTreeMap<String, ShotMap> = BTreeMap::new();
+
+    for rel in &visible {
+        let abs = root.join(rel);
+        if !abs.is_file() {
             continue;
         }
-        let mut seq_shots: Vec<ShotStarredGroup> = Vec::new();
-        for shot_dir in list_dirs(&seq_dir)? {
-            let shot_name = match shot_dir.file_name().and_then(|n| n.to_str()) {
-                Some(n) => n.to_string(),
-                None => continue,
-            };
-            if shot_name == SRC_DIR {
-                continue;
-            }
-            let mut starred: Vec<GalleryImage> = Vec::new();
-            for sub in list_dirs(&shot_dir)? {
-                let imgs = scan_directory_images(&sub)?;
-                for img in imgs {
-                    if img.starred == Some(true) {
-                        starred.push(img);
-                    }
-                }
-            }
-            if !starred.is_empty() {
-                seq_shots.push(ShotStarredGroup {
-                    shot_path: as_str(&shot_dir),
-                    shot_name,
-                    images: starred,
-                });
-            }
+        let img = match make_gallery_image(&abs) {
+            Some(i) => i,
+            None => continue,
+        };
+        // Expect path layout: <seq>/<shot>/<version>/<file>
+        let parts: Vec<&str> = rel.split('/').collect();
+        if parts.len() < 4 {
+            continue;
         }
-        if !seq_shots.is_empty() {
-            out.push(SeqStarredGroup {
-                seq_path: as_str(&seq_dir),
-                seq_name,
-                shots: seq_shots,
-            });
-        }
+        let seq = parts[0].to_string();
+        let shot = parts[1].to_string();
+        by_seq.entry(seq).or_default().entry(shot).or_default().push(img);
     }
+
+    let out: Vec<SeqStarredGroup> = by_seq
+        .into_iter()
+        .map(|(seq_name, shots)| {
+            let seq_path = as_str(&root.join(&seq_name));
+            let shots: Vec<ShotStarredGroup> = shots
+                .into_iter()
+                .map(|(shot_name, images)| ShotStarredGroup {
+                    shot_path: as_str(&root.join(&seq_name).join(&shot_name)),
+                    shot_name,
+                    images,
+                })
+                .collect();
+            SeqStarredGroup {
+                seq_path,
+                seq_name,
+                shots,
+            }
+        })
+        .collect();
+
     Ok(out)
 }
 
 #[tauri::command]
-pub fn sequence_starred_scan(sequence_path: String) -> AppResult<Vec<ShotStarredGroup>> {
-    let root = PathBuf::from(&sequence_path);
-    if !root.is_dir() {
-        return Err(AppError::Msg(format!("not a directory: {sequence_path}")));
+pub fn image_set_visible(image_path: String, visible: bool) -> AppResult<()> {
+    let p = PathBuf::from(&image_path);
+    let root = project_root_for(&p)?;
+    let rel = relativize(&p, &root)
+        .ok_or_else(|| AppError::Msg("image not under project root".into()))?;
+    let mut set = load_visible_set(&root)?;
+    if visible {
+        set.insert(rel);
+    } else {
+        set.remove(&rel);
     }
-    let mut out: Vec<ShotStarredGroup> = Vec::new();
-    for shot_dir in list_dirs(&root)? {
-        // Skip the sequence-level SRC pseudo-shot.
-        let name = match shot_dir.file_name().and_then(|n| n.to_str()) {
-            Some(n) => n.to_string(),
-            None => continue,
-        };
-        if name == SRC_DIR {
-            continue;
-        }
-        let mut starred: Vec<GalleryImage> = Vec::new();
-        // Walk every direct subdir of the shot (SRC + v###) for starred images.
-        for sub in list_dirs(&shot_dir)? {
-            let imgs = scan_directory_images(&sub)?;
-            for img in imgs {
-                if img.starred == Some(true) {
-                    starred.push(img);
-                }
-            }
-        }
-        if !starred.is_empty() {
-            out.push(ShotStarredGroup {
-                shot_path: as_str(&shot_dir),
-                shot_name: name,
-                images: starred,
-            });
-        }
-    }
-    Ok(out)
+    save_visible_set(&root, &set)
 }
 
 #[tauri::command]
@@ -502,11 +596,10 @@ fn copy_triple_to_dir(src: &Path, dest_dir: &Path, policy: CollisionPolicy) -> A
     }
     let (_stem, filename, src_sidecar, src_thumb) = sibling_paths(src)?;
     let dest_primary = dest_dir.join(&filename);
-    if dest_primary.exists() {
-        if matches!(policy, CollisionPolicy::Error) {
+    if dest_primary.exists()
+        && matches!(policy, CollisionPolicy::Error) {
             return Err(AppError::Msg(format!("FILENAME_EXISTS: {filename}")));
         }
-    }
     std::fs::copy(src, &dest_primary)?;
     if src_sidecar.exists() {
         let dest_sidecar = dest_dir.join(src_sidecar.file_name().unwrap());
@@ -609,6 +702,18 @@ pub fn image_copy_to_dir(source_path: String, dest_dir: String) -> AppResult<Str
     let src = PathBuf::from(&source_path);
     let dest = PathBuf::from(&dest_dir);
     let out = copy_triple_to_dir(&src, &dest, CollisionPolicy::Error)?;
+    // If source is visible, mark the copy visible too.
+    if let Ok(root) = project_root_for(&src) {
+        let src_rel = relativize(&src, &root);
+        let dest_rel = relativize(&out, &root);
+        if let (Some(s), Some(d)) = (src_rel, dest_rel) {
+            let mut set = load_visible_set(&root)?;
+            if set.contains(&s) {
+                set.insert(d);
+                save_visible_set(&root, &set)?;
+            }
+        }
+    }
     Ok(as_str(&out))
 }
 
@@ -617,6 +722,23 @@ pub fn image_move_to_dir(source_path: String, dest_dir: String) -> AppResult<Str
     let src = PathBuf::from(&source_path);
     let dest = PathBuf::from(&dest_dir);
     let out = move_triple_to_dir(&src, &dest)?;
+    // Re-key the visible entry if the source was visible.
+    if let Ok(root) = project_root_for(&out) {
+        // src no longer exists; relativize against pre-move path string directly.
+        let src_rel = src
+            .strip_prefix(&root)
+            .ok()
+            .map(as_str)
+            .or_else(|| relativize(&src, &root));
+        let dest_rel = relativize(&out, &root);
+        if let (Some(s), Some(d)) = (src_rel, dest_rel) {
+            let mut set = load_visible_set(&root)?;
+            if set.remove(&s) {
+                set.insert(d);
+                save_visible_set(&root, &set)?;
+            }
+        }
+    }
     Ok(as_str(&out))
 }
 
@@ -668,6 +790,22 @@ pub fn image_rename(source_path: String, new_stem: String) -> AppResult<String> 
     if old_thumb.exists() {
         if let Err(e) = std::fs::rename(&old_thumb, &new_thumb) {
             eprintln!("thumb rename failed: {e}");
+        }
+    }
+    // Re-key visible entry if present.
+    if let Ok(root) = project_root_for(&new_primary) {
+        let old_rel = src
+            .strip_prefix(&root)
+            .ok()
+            .map(as_str)
+            .or_else(|| relativize(&src, &root));
+        let new_rel = relativize(&new_primary, &root);
+        if let (Some(o), Some(n)) = (old_rel, new_rel) {
+            let mut set = load_visible_set(&root)?;
+            if set.remove(&o) {
+                set.insert(n);
+                save_visible_set(&root, &set)?;
+            }
         }
     }
     Ok(as_str(&new_primary))

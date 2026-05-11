@@ -299,13 +299,11 @@ export async function performImageAction(
     }
     case "toggle_star": {
       try {
-        const existing = (await cmd
-          .image_metadata_read(path)
-          .catch(() => null)) as ImageMetadata | null;
-        const next = existing
-          ? { ...(existing as Record<string, unknown>), starred: !existing.starred }
-          : { starred: true };
-        await cmd.image_metadata_write(path, next);
+        const img = session.columns
+          .flatMap((c) => c.images)
+          .find((i) => i.path === path);
+        const currentlyVisible = img?.starred ?? false;
+        await cmd.image_set_visible(path, !currentlyVisible);
         await session.rescanShot();
         if (
           session.viewMode === "starred" &&

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useGenerationStore } from "../stores/generationStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { IconBtn } from "./IconBtn";
+import { LlmPromptModal } from "./LlmPromptModal";
 
 type Scope = "sequence" | "shot";
 
@@ -20,6 +21,7 @@ export function PromptColumn({ scope, title }: Props) {
 function SequencePromptColumn({ title }: { title: string }) {
   const generation = useGenerationStore();
   const session = useSessionStore();
+  const [llmOpen, setLlmOpen] = useState(false);
 
   const history = session.sequenceHistory;
   const live = generation.sequencePrompt;
@@ -43,6 +45,14 @@ function SequencePromptColumn({ title }: { title: string }) {
           </span>
         )}
         <div className="flex-1" />
+        {!readOnly && (
+          <IconBtn
+            name="auto_awesome"
+            size={18}
+            title="AI rewrite"
+            onClick={() => setLlmOpen(true)}
+          />
+        )}
         <IconBtn
           name="keyboard_arrow_left"
           size={18}
@@ -85,6 +95,17 @@ function SequencePromptColumn({ title }: { title: string }) {
         <div className="text-xs opacity-60 font-mono truncate" title={entry.timestamp}>
           {new Date(entry.timestamp).toLocaleString()}
         </div>
+      )}
+
+      {llmOpen && (
+        <LlmPromptModal
+          originalPrompt={displayed}
+          onAccept={(v) => {
+            setLive(v);
+            setLlmOpen(false);
+          }}
+          onCancel={() => setLlmOpen(false)}
+        />
       )}
     </div>
   );
@@ -185,6 +206,7 @@ type ShotPromptBoxProps = {
 };
 
 function ShotPromptBox({ index, value, readOnly, isFirst, onChange, onAdd, onRemove, onFocusWhenReadOnly }: ShotPromptBoxProps) {
+  const [llmOpen, setLlmOpen] = useState(false);
   return (
     <div className="flex flex-col gap-[4px]">
       <div className="flex items-center gap-[4px] text-xs opacity-80">
@@ -192,6 +214,7 @@ function ShotPromptBox({ index, value, readOnly, isFirst, onChange, onAdd, onRem
         <div className="flex-1" />
         {!readOnly && (
           <>
+            <IconBtn name="auto_awesome" size={16} title="AI rewrite" onClick={() => setLlmOpen(true)} />
             <IconBtn name="add" size={16} title="Add prompt below" onClick={onAdd} />
             {!isFirst && <IconBtn name="remove" size={16} title="Remove this prompt" onClick={onRemove} />}
           </>
@@ -211,6 +234,17 @@ function ShotPromptBox({ index, value, readOnly, isFirst, onChange, onAdd, onRem
           readOnly ? "opacity-70 cursor-text" : ""
         }`}
       />
+
+      {llmOpen && (
+        <LlmPromptModal
+          originalPrompt={value}
+          onAccept={(v) => {
+            onChange(v);
+            setLlmOpen(false);
+          }}
+          onCancel={() => setLlmOpen(false)}
+        />
+      )}
     </div>
   );
 }

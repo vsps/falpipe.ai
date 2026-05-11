@@ -253,7 +253,6 @@ export type ImageMetadata = {
   falResponse?: unknown;
   hueShift?: number;
   sourceImage?: string;
-  starred?: boolean;
 };
 
 // ---------- Generation events ----------

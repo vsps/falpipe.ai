@@ -1,0 +1,172 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  LLM_MODELS,
+  loadLastLlmModel,
+  runLlmRewrite,
+  saveLastLlmModel,
+} from "../lib/llm";
+
+type Props = {
+  originalPrompt: string;
+  onAccept: (rewritten: string) => void;
+  onCancel: () => void;
+};
+
+export function LlmPromptModal({ originalPrompt, onAccept, onCancel }: Props) {
+  const [model, setModel] = useState<string>(() => loadLastLlmModel());
+  const [inputPrompt, setInputPrompt] = useState(originalPrompt);
+  const [outputPrompt, setOutputPrompt] = useState("");
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancel();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      abortRef.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function cancel() {
+    abortRef.current?.abort();
+    onCancel();
+  }
+
+  async function run() {
+    if (running) return;
+    if (!inputPrompt.trim()) {
+      setError("input prompt is empty");
+      return;
+    }
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setRunning(true);
+    setError(null);
+    saveLastLlmModel(model);
+    try {
+      const out = await runLlmRewrite({
+        model,
+        prompt: inputPrompt,
+        signal: ctrl.signal,
+      });
+      if (!ctrl.signal.aborted) setOutputPrompt(out);
+    } catch (e: unknown) {
+      if (!ctrl.signal.aborted) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(msg);
+      }
+    } finally {
+      if (abortRef.current === ctrl) {
+        abortRef.current = null;
+        setRunning(false);
+      }
+    }
+  }
+
+  function accept() {
+    abortRef.current?.abort();
+    onAccept(outputPrompt);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+      onClick={cancel}
+    >
+      <div
+        className="bg-panel text-text border border-dim p-4 w-[640px] max-w-[92vw] max-h-[92vh] flex flex-col gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+            auto_awesome
+          </span>
+          <div className="text-sm font-semibold">AI Rewrite</div>
+          <div className="flex-1" />
+          <button
+            type="button"
+            className="text-sm px-1 hover:bg-accent"
+            onClick={cancel}
+            title="Close (Esc)"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <label className="opacity-70 font-mono text-xs w-[60px]">Model</label>
+          <select
+            className="bg-bg text-text px-1 py-[2px] flex-1 outline-none"
+            value={model}
+            onChange={(e) => setModel(e.currentTarget.value)}
+            disabled={running}
+          >
+            {LLM_MODELS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <div className="text-xs opacity-70 font-mono">Input</div>
+          <textarea
+            value={inputPrompt}
+            onChange={(e) => setInputPrompt(e.currentTarget.value)}
+            disabled={running}
+            className="min-h-[120px] max-h-[40vh] w-full resize-y bg-inset text-text p-prompt-panel outline-none thin-scroll"
+            placeholder="Prompt to send to the LLM"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <div className="text-xs opacity-70 font-mono">Output</div>
+          <textarea
+            value={outputPrompt}
+            onChange={(e) => setOutputPrompt(e.currentTarget.value)}
+            className="min-h-[120px] max-h-[40vh] w-full resize-y bg-inset text-text p-prompt-panel outline-none thin-scroll"
+            placeholder={running ? "Running…" : "Click RUN to generate"}
+          />
+        </div>
+
+        {error && <div className="text-xs text-red-500 break-words">{error}</div>}
+
+        <div className="flex justify-end gap-2 mt-1">
+          <button
+            type="button"
+            className="px-3 py-1 text-sm hover:bg-accent"
+            onClick={cancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="px-3 py-1 text-sm bg-accent hover:opacity-80 disabled:opacity-40"
+            onClick={() => void run()}
+            disabled={running || !inputPrompt.trim()}
+          >
+            {running ? "Running…" : "Run"}
+          </button>
+          <button
+            type="button"
+            className="px-3 py-1 text-sm bg-accent hover:opacity-80 disabled:opacity-40"
+            onClick={accept}
+            disabled={!outputPrompt.trim()}
+          >
+            Accept
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
