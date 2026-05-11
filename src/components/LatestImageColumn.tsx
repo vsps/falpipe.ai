@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { fileSrc } from "../lib/assets";
 import { PathContextMenu } from "./PathContextMenu";
+import { performImageAction } from "../lib/actions";
 import type { GalleryImage, GalleryColumn } from "../lib/types";
 
 /**
@@ -53,7 +54,8 @@ export function LatestImageColumn() {
               key={image.path}
               src={fileSrc(image.path)}
               alt={image.filename}
-              className="max-w-full max-h-full object-contain"
+              className="max-w-full max-h-full object-contain cursor-zoom-in"
+              onClick={() => void performImageAction("zoom", image.path)}
               onContextMenu={onCtx}
             />
           )
