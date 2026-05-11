@@ -1,7 +1,7 @@
 <pre><code>
-░█▀▀░█▀█░█░░░█▀█░▀█▀░█▀█░█▀▀░░░█▀█░▀█▀
-░█▀▀░█▀█░█░░░█▀▀░░█░░█▀▀░█▀▀░░░█▀█░░█░
-░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░░░▀▀▀░▀░▀░▀░▀▀▀
+░█▀▀░█▀█░█░░░█▀█░▀█▀░█▀█░█▀▀░░░░█▀█░▀█▀
+░█▀▀░█▀█░█░░░█▀▀░░█░░█▀▀░█▀▀░░░░█▀█░░█░
+░▀░░░▀░▀░▀▀▀░▀░░░▀▀▀░▀░░░▀▀▀░▀░░▀░▀░▀▀▀
 </code></pre>
 
 # falPipe.ai
@@ -30,7 +30,6 @@ ENTIRELY VIBE CODED SO GOOD LUCK EVERYBODY!
 
 - Veo 3.1
 - Kling 3
-- Seedance 2.0
 - Happy Horse
 - Topaz
 
@@ -61,9 +60,8 @@ pnpm tauri dev       # run
 pnpm tauri build     # produce an installer in src-tauri/target/release/bundle
 ```
 
-### A Windows installer can be found here: https://github.com/vsps/falpipe.ai/releases
-however I do update the source often and don't always build so I would recommend building your own from source as according to the instructions above.
-It's not that hard at all!
+### A test build can be found here (WINDOWS ONLY): https://github.com/vsps/falpipe.ai/releases
+
 
 ## Configure
 
@@ -87,18 +85,17 @@ On first launch the app creates `%APPDATA%\falPipe\` (Windows) or the equivalent
 6. Click **Generate**. The result lands in a new `vNNN/` column in the gallery and is saved with a sidecar containing the prompt, settings, and reference URLs used.
 
 
-## Some additional notes
+## An updated Library view
 
-All images used as references in a prompt get saved to the \<shot\>/SRC folder. To place files into the \<sequence\>/SRC folder you either need to manually copy them there or RMB -> copy to SEQ/SRC.
+While all new reference images added from disk get saved to the GLOBAL SRC folder any generation can be promoted to be visible (eye icon).
+Clicking the big eye button to the right of the thumbnails brings up all the promoted images in the entire project. This allows for quick cross referencing of images across sequences and shots.
 
-The trace button is a quick way to see which images were used as references to create a particular generation.
+## Prompt enhancement
 
-The cancel button cancels the entire queue, not just the active generation.
-
-Prompts get saved to a history and can be retreived through the \< and \> arrows in the prompt input header.
-
+All text inputs can now be enhanced through an LLM of your choice. Click the sparkles to see the enhancement options.
 
 
 ## License
 
 AGPL v3.0
+I 

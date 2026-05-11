@@ -364,18 +364,27 @@ export function Gallery() {
             <div className="text-sm text-dim p-4">Open a shot to see its versions.</div>
           ) : (
             <>
-              {columns.map((c) => (
-                <GalleryColumn
-                  key={c.version}
-                  column={c}
-                  width={thumbColWidth}
-                  destDir={destDirFor(c)}
-                  dragState={dragState}
-                  onFolderDelete={() => onFolderDelete(c.version)}
-                  onImageAction={onImageAction}
-                  onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
-                  onDragStart={onDragStart}
-                />
+              {columns.map((c, i) => (
+                <React.Fragment key={c.version}>
+                  <GalleryColumn
+                    column={c}
+                    width={thumbColWidth}
+                    destDir={destDirFor(c)}
+                    dragState={dragState}
+                    onFolderDelete={() => onFolderDelete(c.version)}
+                    onImageAction={onImageAction}
+                    onRefresh={c.isSrc ? () => session.rescanShot() : undefined}
+                    onDragStart={onDragStart}
+                  />
+                  {i < columns.length - 1 && (
+                    <ResizeBar
+                      orientation="vertical"
+                      value={thumbColWidth}
+                      onChange={setThumbColWidth}
+                      grow="right"
+                    />
+                  )}
+                </React.Fragment>
               ))}
               <ResizeBar
                 orientation="vertical"
