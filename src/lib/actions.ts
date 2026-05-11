@@ -104,18 +104,17 @@ export async function computeTraceSet(imagePath: string): Promise<Set<string>> {
 }
 
 /** Add a gallery image to the current refs. Images already inside the current
- *  shot tree (SRC or any v###) are referenced by path — no copy needed because
- *  trace walks the file's existing sidecar. External imports still get copied
- *  into SHOT SRC so they survive moves and have a stable home. */
+ *  project tree are referenced by path. External imports are copied into
+ *  GLOBAL SRC at the project root. */
 export async function addImageToRefs(imagePath: string): Promise<string> {
-  const { shotPath } = useSessionStore.getState();
+  const { shotPath, projectPath } = useSessionStore.getState();
   if (!shotPath) throw new Error("no shot open");
   const normalizedImg = imagePath.replaceAll("\\", "/");
-  const normalizedShot = shotPath.replaceAll("\\", "/").replace(/\/+$/, "");
-  const insideShot = normalizedImg.startsWith(normalizedShot + "/");
+  const normalizedProject = (projectPath ?? "").replaceAll("\\", "/").replace(/\/+$/, "");
+  const insideProject = normalizedProject && normalizedImg.startsWith(normalizedProject + "/");
   let finalPath = imagePath;
-  if (!insideShot) {
-    finalPath = await cmd.ref_copy_to_src(shotPath, imagePath);
+  if (!insideProject) {
+    finalPath = await cmd.ref_copy_to_global_src(shotPath, imagePath);
   }
   useGenerationStore.getState().addRefs([finalPath]);
   return finalPath;
@@ -143,6 +142,7 @@ export type ImageAction =
   | "delete"
   | "rename"
   | "edit"
+  | "crop"
   | "toggle_star";
 
 const VIDEO_EXTS = new Set(["mp4", "webm", "mov", "mkv", "m4v", "avi"]);
@@ -268,6 +268,11 @@ export async function performImageAction(
       session.setZoomInitialMode("draw");
       session.setZoomImage(path);
       return;
+    case "crop":
+      session.setSelectedImage(path);
+      session.setZoomInitialMode("crop");
+      session.setZoomImage(path);
+      return;
     case "refresh":
       try {
         await session.rescanShot();
@@ -304,7 +309,7 @@ export async function performImageAction(
         await session.rescanShot();
         if (
           session.viewMode === "starred" &&
-          useSessionStore.getState().sequencePath
+          useSessionStore.getState().projectPath
         ) {
           await useSessionStore.getState().rescanStarred();
         }

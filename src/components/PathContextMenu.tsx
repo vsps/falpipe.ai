@@ -36,6 +36,7 @@ const LABELS: Record<AvailableAction, string> = {
   copy_settings: "Reuse prompt",
   rename: "Rename...",
   edit: "Edit (draw)",
+  crop: "Crop",
   trace: "Trace origins",
   zoom: "Zoom",
   refresh: "Refresh",
@@ -94,7 +95,7 @@ export function PathContextMenu({
   return (
     <div
       ref={ref}
-      className="fixed z-50 bg-panel text-text border border-dim shadow-xl py-0.5 text-xs w-[80px]"
+      className="fixed z-50 bg-panel text-text border border-dim shadow-xl py-0.5 text-xs w-max min-w-[120px]"
       style={{ left: pos.left, top: pos.top }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -104,7 +105,7 @@ export function PathContextMenu({
           type="button"
           onClick={run(a)}
           title={LABELS[a]}
-          className="w-full text-left px-1.5 py-[2px] hover:bg-accent truncate"
+          className="w-full text-left px-1.5 py-[2px] hover:bg-accent"
         >
           {LABELS[a]}
         </button>

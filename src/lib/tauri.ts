@@ -8,6 +8,7 @@ import type {
   ShotSidecar,
   ImageMetadata,
   ShotStarredGroup,
+  SeqStarredGroup,
 } from "./types";
 
 // Thin typed wrapper over Tauri commands. Keep names 1:1 with Rust #[tauri::command] fns.
@@ -54,6 +55,9 @@ export const cmd = {
   sequence_starred_scan: (sequencePath: string): Promise<ShotStarredGroup[]> =>
     rawInvoke("sequence_starred_scan", { sequencePath }),
 
+  project_starred_scan: (projectPath: string): Promise<SeqStarredGroup[]> =>
+    rawInvoke("project_starred_scan", { projectPath }),
+
   sequence_prompt_append: (
     sequencePath: string,
     prompt: string,
@@ -73,14 +77,8 @@ export const cmd = {
   version_create_next: (shotPath: string): Promise<string> =>
     rawInvoke("version_create_next", { shotPath }),
 
-  ref_copy_to_src: (shotPath: string, sourcePath: string): Promise<string> =>
-    rawInvoke("ref_copy_to_src", { shotPath, sourcePath }),
-
-  ref_copy_to_seq_src: (
-    shotPath: string,
-    sourcePath: string,
-  ): Promise<string> =>
-    rawInvoke("ref_copy_to_seq_src", { shotPath, sourcePath }),
+  ref_copy_to_global_src: (shotPath: string, sourcePath: string): Promise<string> =>
+    rawInvoke("ref_copy_to_global_src", { shotPath, sourcePath }),
 
   image_copy_to_dir: (sourcePath: string, destDir: string): Promise<string> =>
     rawInvoke("image_copy_to_dir", { sourcePath, destDir }),

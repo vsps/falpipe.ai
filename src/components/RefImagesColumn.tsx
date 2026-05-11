@@ -69,7 +69,7 @@ export function RefImagesColumn() {
     const copied: string[] = [];
     for (const p of media) {
       try {
-        const dest = await cmd.ref_copy_to_src(shotPath, p);
+        const dest = await cmd.ref_copy_to_global_src(shotPath, p);
         copied.push(dest);
       } catch (e) {
         await showMessage(`Failed to add ${basename(p)}: ${e}`, { kind: "error" });

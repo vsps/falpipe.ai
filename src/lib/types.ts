@@ -119,6 +119,12 @@ export type ShotStarredGroup = {
   images: GalleryImage[];
 };
 
+export type SeqStarredGroup = {
+  seqPath: string;
+  seqName: string;
+  shots: ShotStarredGroup[];
+};
+
 export type GalleryColumn = {
   id: string;
   version: string;

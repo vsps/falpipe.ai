@@ -10,7 +10,9 @@ import type { GalleryImage, GalleryColumn } from "../lib/types";
  * recent generation). Videos render with native controls.
  */
 export function LatestImageColumn() {
-  const { columns, selectedImagePath, targetVersion } = useSessionStore();
+  const columns = useSessionStore((s) => s.columns);
+  const selectedImagePath = useSessionStore((s) => s.selectedImagePath);
+  const targetVersion = useSessionStore((s) => s.targetVersion);
   const image = useMemo(
     () => pickImage(columns, selectedImagePath, targetVersion),
     [columns, selectedImagePath, targetVersion],

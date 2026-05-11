@@ -4,7 +4,7 @@ import type {
   PromptHistoryChannel,
   SequenceSidecar,
   ShotSidecar,
-  ShotStarredGroup,
+  SeqStarredGroup,
 } from "../lib/types";
 import { cmd } from "../lib/tauri";
 
@@ -22,7 +22,7 @@ type State = {
   columns: GalleryColumn[];
   selectedImagePath: string | null;
   zoomImagePath: string | null;
-  zoomInitialMode: "draw" | null;
+  zoomInitialMode: "draw" | "crop" | null;
   renameImagePath: string | null;
   imageDrag: { fromPath: string } | null;
   targetVersion: string | null;
@@ -33,7 +33,7 @@ type State = {
   traceActive: { imagePath: string; traceSet: Set<string> } | null;
 
   viewMode: ViewMode;
-  starredGroups: ShotStarredGroup[];
+  starredGroups: SeqStarredGroup[];
   starredLoading: boolean;
 
   galleryHeight: number;
@@ -53,7 +53,7 @@ type Actions = {
 
   setSelectedImage: (path: string | null) => void;
   setZoomImage: (path: string | null) => void;
-  setZoomInitialMode: (mode: "draw" | null) => void;
+  setZoomInitialMode: (mode: "draw" | "crop" | null) => void;
   setRenameImage: (path: string | null) => void;
   setImageDrag: (drag: State["imageDrag"]) => void;
   setTrace: (state: State["traceActive"]) => void;
@@ -74,7 +74,7 @@ type Actions = {
 
 const GALLERY_H_MIN = 120;
 const GALLERY_H_MAX = 1200;
-const THUMB_W_MIN = 120;
+const THUMB_W_MIN = 130;
 const THUMB_W_MAX = 400;
 const LOG_H_MIN = 24;
 const LOG_H_MAX = 600;
@@ -250,14 +250,14 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
   },
 
   async rescanStarred() {
-    const { sequencePath } = get();
-    if (!sequencePath) {
+    const { projectPath } = get();
+    if (!projectPath) {
       set({ starredGroups: [], starredLoading: false });
       return;
     }
     set({ starredLoading: true });
     try {
-      const groups = await cmd.sequence_starred_scan(sequencePath);
+      const groups = await cmd.project_starred_scan(projectPath);
       set({ starredGroups: groups, starredLoading: false });
     } catch (e) {
       set({ starredLoading: false });

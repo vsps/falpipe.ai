@@ -109,6 +109,7 @@ export function GalleryColumn({
               onCopySettings={() => onImageAction("copy_settings", img.path)}
               onTrace={() => onImageAction("trace", img.path)}
               onEdit={() => onImageAction("edit", img.path)}
+              onCrop={() => onImageAction("crop", img.path)}
               onDelete={() => onImageAction("delete", img.path)}
               onToggleStar={() => onImageAction("toggle_star", img.path)}
               onDragStart={onDragStart}

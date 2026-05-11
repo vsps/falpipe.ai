@@ -53,14 +53,6 @@ fn ensure_dir(path: &Path) -> AppResult<()> {
     Ok(())
 }
 
-/// Always resolves to `<shot>/SRC`. Sequence-level SRC is handled separately
-/// via `ref_copy_to_seq_src`.
-fn shot_src_dir(shot_path: &Path) -> AppResult<PathBuf> {
-    let dir = shot_path.join(SRC_DIR);
-    ensure_dir(&dir)?;
-    Ok(dir)
-}
-
 fn list_dirs(root: &Path) -> AppResult<Vec<PathBuf>> {
     if !root.is_dir() {
         return Ok(vec![]);
@@ -126,9 +118,6 @@ pub fn sequence_open(sequence_path: String) -> AppResult<SequenceOpenResult> {
     if !root.is_dir() {
         return Err(AppError::Msg(format!("not a directory: {sequence_path}")));
     }
-    // Always ensure a sequence-level SRC exists. Empty when toggle is "shot" —
-    // harmless, and means flipping to "sequence" later self-heals.
-    ensure_dir(&root.join(SRC_DIR))?;
     let sidecar: SequenceSidecar = read_sidecar(&root.join(SEQUENCE_SIDECAR))?;
     let dirs = list_dirs(&root)?;
     let shots = dirs
@@ -148,7 +137,6 @@ pub fn sequence_open(sequence_path: String) -> AppResult<SequenceOpenResult> {
 pub fn sequence_create(project_path: String, name: String) -> AppResult<String> {
     let target = PathBuf::from(&project_path).join(sanitize(&name));
     ensure_dir(&target)?;
-    ensure_dir(&target.join(SRC_DIR))?;
     let sidecar_path = target.join(SEQUENCE_SIDECAR);
     if !sidecar_path.exists() {
         write_sidecar_atomic(
@@ -175,7 +163,6 @@ pub fn shot_open(shot_path: String) -> AppResult<ShotOpenResult> {
     if !root.is_dir() {
         return Err(AppError::Msg(format!("not a directory: {shot_path}")));
     }
-    shot_src_dir(&root)?;
     let sidecar: ShotSidecar = read_sidecar(&root.join(SHOT_SIDECAR))?;
     let columns = scan_shot_columns(&root)?;
     Ok(ShotOpenResult { columns, sidecar })
@@ -191,7 +178,6 @@ pub fn shot_rescan(shot_path: String) -> AppResult<Vec<GalleryColumn>> {
 pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
     let target = PathBuf::from(&sequence_path).join(sanitize(&name));
     ensure_dir(&target)?;
-    shot_src_dir(&target)?;
     let sidecar_path = target.join(SHOT_SIDECAR);
     if !sidecar_path.exists() {
         write_sidecar_atomic(
@@ -208,28 +194,14 @@ pub fn shot_create(sequence_path: String, name: String) -> AppResult<String> {
 fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
     let mut cols: Vec<GalleryColumn> = Vec::new();
 
-    // Always include the shot's own SRC as "SHOT SRC".
-    let shot_src = root.join(SRC_DIR);
-    if shot_src.is_dir() {
-        let images = scan_directory_images(&shot_src)?;
-        cols.push(GalleryColumn {
-            id: as_str(&shot_src),
-            version: "SHOT SRC".to_string(),
-            is_src: true,
-            images,
-            timestamp: None,
-            model_name: None,
-        });
-    }
-
-    // Always include the sequence-level SRC as "SEQ SRC".
-    if let Some(seq) = root.parent() {
-        let seq_src = seq.join(SRC_DIR);
-        if seq_src.is_dir() {
-            let images = scan_directory_images(&seq_src)?;
+    // Include the project-level SRC as "GLOBAL SRC" (shot → seq → project).
+    if let Some(project) = root.parent().and_then(|s| s.parent()) {
+        let global_src = project.join(SRC_DIR);
+        if global_src.is_dir() {
+            let images = scan_directory_images(&global_src)?;
             cols.push(GalleryColumn {
-                id: as_str(&seq_src),
-                version: "SEQUENCE SRC".to_string(),
+                id: as_str(&global_src),
+                version: "GLOBAL SRC".to_string(),
                 is_src: true,
                 images,
                 timestamp: None,
@@ -238,7 +210,7 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
         }
     }
 
-    // Scan version directories.
+    // Scan all subdirectories as version columns (including any legacy SRC folders).
     for entry in std::fs::read_dir(root)? {
         let entry = entry?;
         let p = entry.path();
@@ -249,9 +221,6 @@ fn scan_shot_columns(root: &Path) -> AppResult<Vec<GalleryColumn>> {
             Some(n) => n.to_string(),
             None => continue,
         };
-        if name == SRC_DIR {
-            continue;
-        }
         if name.starts_with('.') || name.starts_with('$') {
             continue;
         }
@@ -369,6 +338,66 @@ pub struct ShotStarredGroup {
     pub shot_path: String,
     pub shot_name: String,
     pub images: Vec<GalleryImage>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SeqStarredGroup {
+    pub seq_path: String,
+    pub seq_name: String,
+    pub shots: Vec<ShotStarredGroup>,
+}
+
+#[tauri::command]
+pub fn project_starred_scan(project_path: String) -> AppResult<Vec<SeqStarredGroup>> {
+    let root = PathBuf::from(&project_path);
+    if !root.is_dir() {
+        return Err(AppError::Msg(format!("not a directory: {project_path}")));
+    }
+    let mut out: Vec<SeqStarredGroup> = Vec::new();
+    for seq_dir in list_dirs(&root)? {
+        let seq_name = match seq_dir.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        if seq_name == SRC_DIR {
+            continue;
+        }
+        let mut seq_shots: Vec<ShotStarredGroup> = Vec::new();
+        for shot_dir in list_dirs(&seq_dir)? {
+            let shot_name = match shot_dir.file_name().and_then(|n| n.to_str()) {
+                Some(n) => n.to_string(),
+                None => continue,
+            };
+            if shot_name == SRC_DIR {
+                continue;
+            }
+            let mut starred: Vec<GalleryImage> = Vec::new();
+            for sub in list_dirs(&shot_dir)? {
+                let imgs = scan_directory_images(&sub)?;
+                for img in imgs {
+                    if img.starred == Some(true) {
+                        starred.push(img);
+                    }
+                }
+            }
+            if !starred.is_empty() {
+                seq_shots.push(ShotStarredGroup {
+                    shot_path: as_str(&shot_dir),
+                    shot_name,
+                    images: starred,
+                });
+            }
+        }
+        if !seq_shots.is_empty() {
+            out.push(SeqStarredGroup {
+                seq_path: as_str(&seq_dir),
+                seq_name,
+                shots: seq_shots,
+            });
+        }
+    }
+    Ok(out)
 }
 
 #[tauri::command]
@@ -563,22 +592,15 @@ fn validate_filename_stem(stem: &str) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn ref_copy_to_src(shot_path: String, source_path: String) -> AppResult<String> {
+pub fn ref_copy_to_global_src(shot_path: String, source_path: String) -> AppResult<String> {
     let src = PathBuf::from(&source_path);
-    let dir = shot_src_dir(&PathBuf::from(&shot_path))?;
-    let dest = copy_triple_to_dir(&src, &dir, CollisionPolicy::Overwrite)?;
-    Ok(as_str(&dest))
-}
-
-#[tauri::command]
-pub fn ref_copy_to_seq_src(shot_path: String, source_path: String) -> AppResult<String> {
-    let src = PathBuf::from(&source_path);
-    let seq_dir = PathBuf::from(&shot_path)
+    let project_dir = PathBuf::from(&shot_path)
         .parent()
-        .ok_or_else(|| AppError::Msg("no sequence parent".into()))?
+        .and_then(|s| s.parent())
+        .ok_or_else(|| AppError::Msg("no project parent".into()))?
         .join(SRC_DIR);
-    ensure_dir(&seq_dir)?;
-    let dest = copy_triple_to_dir(&src, &seq_dir, CollisionPolicy::Overwrite)?;
+    ensure_dir(&project_dir)?;
+    let dest = copy_triple_to_dir(&src, &project_dir, CollisionPolicy::Overwrite)?;
     Ok(as_str(&dest))
 }
 

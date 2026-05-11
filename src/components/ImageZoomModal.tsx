@@ -35,10 +35,13 @@ export function ImageZoomModal({
   const zoomInitialMode = useSessionStore((s) => s.zoomInitialMode);
   const setZoomInitialMode = useSessionStore((s) => s.setZoomInitialMode);
 
-  // Consume the one-shot mode flag set by the gallery edit shortcut.
+  // Consume the one-shot mode flag set by the gallery edit/crop shortcut.
   useEffect(() => {
     if (zoomInitialMode === "draw") {
       setDrawMode(true);
+      setZoomInitialMode(null);
+    } else if (zoomInitialMode === "crop") {
+      setCropMode(true);
       setZoomInitialMode(null);
     }
   }, [zoomInitialMode, setZoomInitialMode]);

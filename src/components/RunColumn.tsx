@@ -16,7 +16,9 @@ export function RunColumn() {
     jobs,
     resetGenerationForm,
   } = useGenerationStore();
-  const { shotPath, targetVersion, createNextVersion } = useSessionStore();
+  const shotPath = useSessionStore((s) => s.shotPath);
+  const targetVersion = useSessionStore((s) => s.targetVersion);
+  const createNextVersion = useSessionStore((s) => s.createNextVersion);
 
   const activeJobs = jobs.filter(
     (j) =>

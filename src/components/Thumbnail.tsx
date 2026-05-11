@@ -17,6 +17,7 @@ type Props = {
   onCopySettings: () => void;
   onTrace: () => void;
   onEdit: () => void;
+  onCrop?: () => void;
   onDelete: () => void;
   onToggleStar: () => void;
   onDragStart: (payload: {
@@ -43,6 +44,7 @@ export function Thumbnail({
   onCopySettings,
   onTrace,
   onEdit,
+  onCrop,
   onDelete,
   onToggleStar,
   onDragStart,
@@ -185,6 +187,9 @@ export function Thumbnail({
         <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
         <IconBtn name="copy_all" size={16} title="Reuse prompt" onClick={onCopySettings} />
         <IconBtn name="conversion_path" size={16} title="Trace" onClick={onTrace} />
+        {!image.isVideo && onCrop && (
+          <IconBtn name="crop" size={16} title="Crop" onClick={onCrop} />
+        )}
         {!image.isVideo && (
           <IconBtn name="edit" size={16} title="Edit (draw)" onClick={onEdit} />
         )}

@@ -317,7 +317,7 @@ export function Gallery() {
           className={`${
             viewMode === "starred" ? "bg-accent" : "accent-hover"
           } px-3 py-2 flex items-center justify-center`}
-          title={viewMode === "starred" ? "Back to versions" : "View starred"}
+          title={viewMode === "starred" ? "Back to versions" : "Show visible"}
           onClick={() => setViewMode(viewMode === "starred" ? "columns" : "starred")}
         >
           <Icon name="visibility" size={22} fill={viewMode === "starred"} />
