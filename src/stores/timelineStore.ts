@@ -39,6 +39,12 @@ type Actions = {
   toggleClipEnabled: (id: string) => void;
   setClipMedia: (id: string, mediaPath: string | null) => void;
   setClipSourceOffset: (id: string, sec: number) => void;
+  /**
+   * Append a clip for a newly created shot. No-op if the timeline isn't
+   * loaded or this shot is already referenced. Mirrors the defaults used
+   * by the reconciliation pass in `loadForSequence`.
+   */
+  appendShotClip: (shotPath: string) => void;
   setShotClipMedia: (
     shotPath: string,
     mediaPath: string | null,
@@ -256,6 +262,35 @@ export const useTimelineStore = create<State & Actions>((set, get) => ({
         c.id === id ? { ...c, sourceOffsetSec: v } : c,
       ),
     }));
+    get().saveDebounced();
+  },
+
+  appendShotClip(shotPath) {
+    const { seqPath } = get();
+    if (!seqPath) return;
+    set((s) => {
+      if (s.clips.some((c) => c.shotPath === shotPath)) return s;
+      const clip: TimelineClip = {
+        id: crypto.randomUUID(),
+        shotPath,
+        enabled: true,
+        durationSec: DEFAULT_CLIP_DURATION_SEC,
+        mediaPath: null,
+      };
+      const clips = [...s.clips, clip];
+      const sum = clips.reduce((a, c) => a + c.durationSec, 0);
+      const totalDurationSec = Math.max(s.totalDurationSec, sum);
+      const shotsLatestMedia = new Map(s.shotsLatestMedia);
+      if (!shotsLatestMedia.has(shotPath)) {
+        shotsLatestMedia.set(shotPath, {
+          shotPath,
+          mediaPath: null,
+          isVideo: false,
+          clipMediaPath: null,
+        });
+      }
+      return { clips, totalDurationSec, shotsLatestMedia };
+    });
     get().saveDebounced();
   },
 

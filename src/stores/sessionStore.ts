@@ -219,6 +219,8 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
     const shotPath = await cmd.shot_create(sequencePath, name);
     const { shots } = await cmd.sequence_open(sequencePath);
     set({ shotsInSequence: shots });
+    const tl = useTimelineStore.getState();
+    if (tl.seqPath === sequencePath) tl.appendShotClip(shotPath);
     await get().setShot(shotPath);
   },
 
