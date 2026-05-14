@@ -266,6 +266,9 @@ pub struct TimelineClip {
     pub duration_sec: f64,
     #[serde(default)]
     pub media_path: Option<String>,
+    /// Slip offset into the source media (seconds). 0 = play from the start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_offset_sec: Option<f64>,
 }
 
 fn default_true() -> bool {

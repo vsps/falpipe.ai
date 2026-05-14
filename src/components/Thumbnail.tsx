@@ -174,7 +174,7 @@ export function Thumbnail({
           className="absolute bottom-1 right-1 text-accent drop-shadow pointer-events-none group-hover:opacity-0 transition-opacity"
           title="Clip media"
         >
-          <Icon name="theaters" size={18} fill />
+          <Icon name="movie" size={18} fill />
         </span>
       )}
 
@@ -194,7 +194,7 @@ export function Thumbnail({
         />
         {onToggleClipMedia && (
           <IconBtn
-            name="theaters"
+            name="movie"
             size={16}
             fill={!!clipMediaSelected}
             title={clipMediaSelected ? "Clear clip media" : "Set as clip media"}

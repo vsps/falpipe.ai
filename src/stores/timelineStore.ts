@@ -38,10 +38,18 @@ type Actions = {
   moveClip: (fromIdx: number, toIdx: number) => void;
   toggleClipEnabled: (id: string) => void;
   setClipMedia: (id: string, mediaPath: string | null) => void;
+  setClipSourceOffset: (id: string, sec: number) => void;
   setShotClipMedia: (
     shotPath: string,
     mediaPath: string | null,
   ) => Promise<void>;
+  /**
+   * Reset structural edits: restore clip order to disk order, set each clip's
+   * duration to total/N, clear sourceOffsetSec and re-enable all clips.
+   * Preserves per-clip `mediaPath` overrides (and the shot's `clipMediaPath`,
+   * which is per-shot and not touched here).
+   */
+  resetClips: () => void;
 
   play: () => void;
   pause: () => void;
@@ -241,6 +249,62 @@ export const useTimelineStore = create<State & Actions>((set, get) => ({
     get().saveDebounced();
   },
 
+  setClipSourceOffset(id, sec) {
+    const v = Number.isFinite(sec) ? Math.max(0, sec) : 0;
+    set((s) => ({
+      clips: s.clips.map((c) =>
+        c.id === id ? { ...c, sourceOffsetSec: v } : c,
+      ),
+    }));
+    get().saveDebounced();
+  },
+
+  resetClips() {
+    set((s) => {
+      // Disk order = the key-iteration order of `shotsLatestMedia`, which is
+      // populated from the Rust scan (alphabetic by shot dir).
+      const diskOrder = Array.from(s.shotsLatestMedia.keys());
+      const byShot = new Map(
+        s.clips
+          .filter((c) => c.shotPath != null)
+          .map((c) => [c.shotPath as string, c]),
+      );
+      const ordered: TimelineClip[] = [];
+      for (const shotPath of diskOrder) {
+        const existing = byShot.get(shotPath);
+        if (existing) {
+          ordered.push({
+            ...existing,
+            enabled: true,
+            sourceOffsetSec: 0,
+            // durationSec set below once N is known
+            durationSec: existing.durationSec,
+          });
+        } else {
+          ordered.push({
+            id: crypto.randomUUID(),
+            shotPath,
+            enabled: true,
+            durationSec: DEFAULT_CLIP_DURATION_SEC,
+            mediaPath: null,
+            sourceOffsetSec: 0,
+          });
+        }
+      }
+      const n = ordered.length;
+      const total =
+        s.totalDurationSec > 0
+          ? s.totalDurationSec
+          : Math.max(DEFAULT_CLIP_DURATION_SEC * n, DEFAULT_CLIP_DURATION_SEC);
+      const each =
+        n > 0 ? Math.max(MIN_CLIP_DURATION_SEC, total / n) : DEFAULT_CLIP_DURATION_SEC;
+      const clips = ordered.map((c) => ({ ...c, durationSec: each }));
+      const newTotal = n > 0 ? each * n : total;
+      return { clips, totalDurationSec: newTotal };
+    });
+    get().saveDebounced();
+  },
+
   async setShotClipMedia(shotPath, mediaPath) {
     await cmd.shot_clip_media_set(shotPath, mediaPath);
     set((s) => {
@@ -409,6 +473,56 @@ export function clipAtPlayhead(
       };
     }
     acc = end;
+  }
+  return null;
+}
+
+export type NextVideoClip = {
+  clip: TimelineClip;
+  startSec: number;
+  resolved: ResolvedClipMedia;
+  effOffset: number;
+};
+
+/**
+ * Find the first enabled video clip strictly after `afterClipId` in display
+ * order. Returns its start time on the timeline, resolved media, and the
+ * source offset clamped to a valid range against `videoDurations`.
+ *
+ * Used by the playback preview to preload + pre-seek the upcoming video
+ * clip while the current one plays, avoiding seek-hitch at the boundary.
+ */
+export function nextVideoClipAfter(
+  clips: TimelineClip[],
+  totalDurationSec: number,
+  afterClipId: string | null,
+  shotsLatestMedia: Map<string, ShotLatestMedia>,
+  videoDurations: Map<string, number>,
+): NextVideoClip | null {
+  const display = getDisplayClips(clips, totalDurationSec);
+  let startSec = 0;
+  let passedCurrent = afterClipId == null;
+  for (let i = 0; i < display.length; i++) {
+    const c = display[i];
+    if (!passedCurrent) {
+      if (c.id === afterClipId) passedCurrent = true;
+      startSec += c.durationSec;
+      continue;
+    }
+    const isPad = i >= clips.length;
+    if (!isPad && c.enabled) {
+      const resolved = resolveClipMedia(c, shotsLatestMedia);
+      if (resolved && resolved.isVideo) {
+        const raw = c.sourceOffsetSec ?? 0;
+        const srcDur = videoDurations.get(resolved.path);
+        const effOffset =
+          srcDur != null
+            ? Math.min(raw, Math.max(0, srcDur - c.durationSec))
+            : raw;
+        return { clip: c, startSec, resolved, effOffset };
+      }
+    }
+    startSec += c.durationSec;
   }
   return null;
 }

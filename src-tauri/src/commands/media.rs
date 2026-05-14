@@ -51,8 +51,14 @@ pub fn video_thumbnail_extract(
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ExportSegmentKind {
-    Image { path: String },
-    Video { path: String },
+    Image {
+        path: String,
+    },
+    Video {
+        path: String,
+        #[serde(rename = "sourceOffsetSec", default)]
+        source_offset_sec: f64,
+    },
     Blank,
 }
 
@@ -113,10 +119,16 @@ pub fn timeline_export(params: TimelineExportParams) -> AppResult<()> {
                     path.clone(),
                 ]);
             }
-            ExportSegmentKind::Video { path } => {
+            ExportSegmentKind::Video {
+                path,
+                source_offset_sec,
+            } => {
+                let offset = source_offset_sec.max(0.0);
+                // Bound the input decode at offset+dur so a long source doesn't
+                // get fully read before the trim filter discards the head.
                 args.extend_from_slice(&[
                     "-t".into(),
-                    format!("{dur}"),
+                    format!("{}", offset + dur),
                     "-i".into(),
                     path.clone(),
                 ]);
@@ -136,7 +148,17 @@ pub fn timeline_export(params: TimelineExportParams) -> AppResult<()> {
         // Per-input normalize filter chain.
         let chain = match &seg.kind {
             ExportSegmentKind::Blank => format!("[{i}:v]setsar=1[v{i}]"),
-            _ => format!(
+            ExportSegmentKind::Video {
+                source_offset_sec, ..
+            } => {
+                let offset = source_offset_sec.max(0.0);
+                format!(
+                    "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,\
+                     pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,\
+                     setsar=1,fps={fps},trim=start={offset}:duration={dur},setpts=PTS-STARTPTS[v{i}]"
+                )
+            }
+            ExportSegmentKind::Image { .. } => format!(
                 "[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,\
                  pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,\
                  setsar=1,fps={fps},trim=duration={dur},setpts=PTS-STARTPTS[v{i}]"

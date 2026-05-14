@@ -241,6 +241,12 @@ export type TimelineClip = {
    * the latest version's last image.
    */
   mediaPath: string | null;
+  /**
+   * Slip offset into the source media (seconds). Default 0. Only meaningful
+   * for video media — the clip plays `[offset, offset + durationSec]` of the
+   * source. Clamped at use sites by source duration.
+   */
+  sourceOffsetSec?: number;
 };
 
 export type SequenceTimeline = {
@@ -262,7 +268,12 @@ export type TimelineInit = {
 
 export type ExportSegment =
   | { kind: "image"; path: string; durationSec: number }
-  | { kind: "video"; path: string; durationSec: number }
+  | {
+      kind: "video";
+      path: string;
+      durationSec: number;
+      sourceOffsetSec: number;
+    }
   | { kind: "blank"; durationSec: number };
 
 export type TimelineExportParams = {

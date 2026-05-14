@@ -25,6 +25,27 @@ export function Timeline() {
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   const reorderRef = useRef<{ fromIdx: number } | null>(null);
 
+  const getStripWidthPx = useCallback(
+    () => stripRef.current?.getBoundingClientRect().width ?? 0,
+    [],
+  );
+
+  const onPlaceHeadAtClientX = useCallback(
+    (clientX: number) => {
+      const strip = stripRef.current;
+      if (!strip) return;
+      const rect = strip.getBoundingClientRect();
+      const total = useTimelineStore.getState().totalDurationSec;
+      if (rect.width <= 0 || total <= 0) return;
+      const t = Math.max(
+        0,
+        Math.min(total, ((clientX - rect.left) / rect.width) * total),
+      );
+      setPlayheadSec(t);
+    },
+    [setPlayheadSec],
+  );
+
   // ---- rAF playback loop ----
   useEffect(() => {
     if (!playing) return;
@@ -200,7 +221,9 @@ export function Timeline() {
                 isPad={i >= clips.length}
                 shotsLatestMedia={shotsLatestMedia}
                 widthPct={(c.durationSec / totalDurationSec) * 100}
+                getStripWidthPx={getStripWidthPx}
                 onReorderStart={onReorderStart}
+                onPlaceHeadAtClientX={onPlaceHeadAtClientX}
               />
             ))}
 
@@ -209,13 +232,15 @@ export function Timeline() {
               <div
                 key={`bnd-${i}`}
                 onPointerDown={(e) => onBoundaryPointerDown(i, e)}
-                className="absolute top-0 bottom-0 z-10 cursor-col-resize"
+                className="group absolute top-0 bottom-0 z-10 cursor-col-resize flex items-center justify-center"
                 style={{
-                  left: `calc(${pct}% - 3px)`,
-                  width: 6,
+                  left: `calc(${pct}% - 4px)`,
+                  width: 8,
                 }}
                 title="Drag to resize"
-              />
+              >
+                <div className="w-[2px] h-full bg-handle/60 group-hover:bg-accent transition-colors" />
+              </div>
             ))}
 
             {/* Drop indicator while reordering. */}

@@ -30,6 +30,7 @@ export function ExportModal({ onClose }: Props) {
   const clips = useTimelineStore((s) => s.clips);
   const totalDurationSec = useTimelineStore((s) => s.totalDurationSec);
   const shotsLatestMedia = useTimelineStore((s) => s.shotsLatestMedia);
+  const videoDurations = useTimelineStore((s) => s.videoDurations);
   const sequencePath = useSessionStore((s) => s.sequencePath);
 
   const [width, setWidth] = useState(DEFAULTS.width);
@@ -49,8 +50,9 @@ export function ExportModal({ onClose }: Props) {
   }, [onClose, busy]);
 
   const segments = useMemo(
-    () => buildSegments(clips, totalDurationSec, shotsLatestMedia),
-    [clips, totalDurationSec, shotsLatestMedia],
+    () =>
+      buildSegments(clips, totalDurationSec, shotsLatestMedia, videoDurations),
+    [clips, totalDurationSec, shotsLatestMedia, videoDurations],
   );
 
   const defaultSaveName = sequencePath
@@ -214,6 +216,7 @@ function buildSegments(
   clips: TimelineClip[],
   totalDurationSec: number,
   shotsLatestMedia: Map<string, ShotLatestMedia>,
+  videoDurations: Map<string, number>,
 ): ExportSegment[] {
   const display = getDisplayClips(clips, totalDurationSec);
   const out: ExportSegment[] = [];
@@ -226,10 +229,17 @@ function buildSegments(
       continue;
     }
     if (resolved.isVideo) {
+      const srcDur = videoDurations.get(resolved.path);
+      const rawOffset = c.sourceOffsetSec ?? 0;
+      const effOffset =
+        srcDur != null
+          ? Math.min(rawOffset, Math.max(0, srcDur - c.durationSec))
+          : rawOffset;
       out.push({
         kind: "video",
         path: resolved.path,
         durationSec: c.durationSec,
+        sourceOffsetSec: effOffset,
       });
     } else {
       out.push({

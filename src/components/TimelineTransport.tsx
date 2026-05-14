@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTimelineStore } from "../stores/timelineStore";
 import { IconBtn } from "./IconBtn";
 import { ExportModal } from "./ExportModal";
+import { confirmAction } from "../lib/dialog";
 
 export function TimelineTransport() {
   const totalDurationSec = useTimelineStore((s) => s.totalDurationSec);
@@ -10,6 +11,8 @@ export function TimelineTransport() {
   const play = useTimelineStore((s) => s.play);
   const pause = useTimelineStore((s) => s.pause);
   const restart = useTimelineStore((s) => s.restart);
+  const resetClips = useTimelineStore((s) => s.resetClips);
+  const clipCount = useTimelineStore((s) => s.clips.length);
 
   const [exportOpen, setExportOpen] = useState(false);
   const [draft, setDraft] = useState(totalDurationSec.toFixed(1));
@@ -28,6 +31,13 @@ export function TimelineTransport() {
 
   return (
     <div className="flex items-center px-2 gap-2 border-l border-border bg-panel">
+      <IconBtn
+        name="fast_rewind"
+        size={18}
+        title="Rewind to start"
+        onClick={restart}
+        disabled={totalDurationSec <= 0}
+      />
       {playing ? (
         <IconBtn name="pause" size={18} title="Pause" onClick={pause} />
       ) : (
@@ -39,7 +49,6 @@ export function TimelineTransport() {
           disabled={totalDurationSec <= 0}
         />
       )}
-      <IconBtn name="restart_alt" size={18} title="Restart" onClick={restart} />
       <IconBtn
         name="download"
         size={18}
@@ -63,6 +72,19 @@ export function TimelineTransport() {
         />
         <span className="text-xs text-dim font-mono">s</span>
       </div>
+      <IconBtn
+        name="restore"
+        size={18}
+        title="Reset clips (order, durations, slip, disabled) — keeps media picks"
+        onClick={async () => {
+          const ok = await confirmAction(
+            "Reset clip order, durations, slip offsets, and disabled state? Media picks (clip eye + version override) are preserved.",
+            { title: "Reset timeline", kind: "warning" },
+          );
+          if (ok) resetClips();
+        }}
+        disabled={clipCount === 0}
+      />
       {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
     </div>
   );
