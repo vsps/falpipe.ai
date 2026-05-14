@@ -3,11 +3,8 @@ import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { bootstrap } from "./lib/bootstrap";
 import { SessionBar } from "./components/SessionBar";
-import { ModelSettingsColumn } from "./components/ModelSettingsColumn";
-import { PromptColumn } from "./components/PromptColumn";
-import { RefImagesColumn } from "./components/RefImagesColumn";
-import { LatestImageColumn } from "./components/LatestImageColumn";
-import { RunColumn } from "./components/RunColumn";
+import { Workbench } from "./components/Workbench";
+import { Timeline } from "./components/Timeline";
 import { Gallery } from "./components/Gallery";
 import { ErrorPopup } from "./components/ErrorPopup";
 import { LogWindow } from "./components/LogWindow";
@@ -70,14 +67,9 @@ export default function App() {
     <div className="flex h-full w-full flex-col gap-prompt-surface bg-bg p-prompt-surface text-text">
       <SessionBar onOpenSettings={() => setSettingsOpen(true)} />
 
-      <div className="flex flex-1 min-h-0 gap-prompt-surface bg-panel overflow-hidden">
-        <ModelSettingsColumn />
-        <PromptColumn scope="sequence" title="SEQUENCE PROMPT" />
-        <PromptColumn scope="shot" title="SHOT PROMPT" />
-        <RefImagesColumn />
-        <LatestImageColumn />
-        <RunColumn />
-      </div>
+      <Workbench />
+
+      <Timeline />
 
       <ResizeBar
         orientation="horizontal"

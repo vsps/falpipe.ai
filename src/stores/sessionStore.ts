@@ -7,6 +7,7 @@ import type {
   SeqStarredGroup,
 } from "../lib/types";
 import { cmd } from "../lib/tauri";
+import { useTimelineStore } from "./timelineStore";
 
 type PromptScope = "sequence" | "shot";
 type ViewMode = "columns" | "starred";
@@ -134,6 +135,7 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
       sequenceHistory: emptyChannel(),
       shotHistory: emptyChannel(),
     });
+    useTimelineStore.getState().reset();
   },
 
   async setSequence(sequencePath) {
@@ -155,9 +157,17 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
     if (get().viewMode === "starred") {
       void get().rescanStarred();
     }
+    // Kick the timeline load in parallel with the shot load — they're independent.
+    const timelineLoad = useTimelineStore
+      .getState()
+      .loadForSequence(sequencePath)
+      .catch(() => {
+        /* non-fatal — leave the timeline empty if init fails */
+      });
     if (shots.length > 0) {
       await get().setShot(shots[shots.length - 1]);
     }
+    await timelineLoad;
   },
 
   async setShot(shotPath) {

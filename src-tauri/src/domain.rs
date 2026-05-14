@@ -249,6 +249,45 @@ pub struct ShotSidecar {
     pub name: String,
     #[serde(default)]
     pub prompt_history: Vec<PromptEntry>,
+    /// Single exclusive "clip media" pick — absolute path or None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clip_media_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimelineClip {
+    pub id: String,
+    /// Absolute path to the source shot. None = blank/padding clip.
+    #[serde(default)]
+    pub shot_path: Option<String>,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    pub duration_sec: f64,
+    #[serde(default)]
+    pub media_path: Option<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct SequenceTimeline {
+    #[serde(default)]
+    pub total_duration_sec: f64,
+    #[serde(default)]
+    pub clips: Vec<TimelineClip>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShotLatestMedia {
+    pub shot_path: String,
+    pub media_path: Option<String>,
+    pub is_video: bool,
+    pub clip_media_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

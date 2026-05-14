@@ -223,6 +223,56 @@ export type SequenceSidecar = {
 export type ShotSidecar = {
   name: string;
   promptHistory: PromptEntry[];
+  /** Single exclusive "clip media" pick (set via the clapperboard icon on a thumb). */
+  clipMediaPath?: string | null;
+};
+
+// ---------- Timeline (NLE) ----------
+
+export type TimelineClip = {
+  id: string;
+  /** Absolute path to the source shot. null = a blank/padding clip. */
+  shotPath: string | null;
+  enabled: boolean;
+  durationSec: number;
+  /**
+   * Explicit media-path override for this clip (chosen via the version picker
+   * on the clip). When null, falls back to the shot's `clipMediaPath`, then to
+   * the latest version's last image.
+   */
+  mediaPath: string | null;
+};
+
+export type SequenceTimeline = {
+  totalDurationSec: number;
+  clips: TimelineClip[];
+};
+
+export type ShotLatestMedia = {
+  shotPath: string;
+  mediaPath: string | null;
+  isVideo: boolean;
+  clipMediaPath: string | null;
+};
+
+export type TimelineInit = {
+  timeline: SequenceTimeline;
+  shotsLatestMedia: ShotLatestMedia[];
+};
+
+export type ExportSegment =
+  | { kind: "image"; path: string; durationSec: number }
+  | { kind: "video"; path: string; durationSec: number }
+  | { kind: "blank"; durationSec: number };
+
+export type TimelineExportParams = {
+  segments: ExportSegment[];
+  outputPath: string;
+  width: number;
+  height: number;
+  fps: number;
+  bitrateKbps: number;
+  ffmpegPath: string;
 };
 
 // ---------- Image metadata sidecar ----------

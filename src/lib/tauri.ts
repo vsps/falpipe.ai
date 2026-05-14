@@ -8,6 +8,9 @@ import type {
   ShotSidecar,
   ImageMetadata,
   SeqStarredGroup,
+  SequenceTimeline,
+  TimelineInit,
+  TimelineExportParams,
 } from "./types";
 
 // Thin typed wrapper over Tauri commands. Keep names 1:1 with Rust #[tauri::command] fns.
@@ -115,4 +118,20 @@ export const cmd = {
     ffmpegPath: string,
   ): Promise<boolean> =>
     rawInvoke("video_thumbnail_extract", { videoPath, thumbPath, ffmpegPath }),
+
+  // Timeline
+  timeline_init: (seqPath: string): Promise<TimelineInit> =>
+    rawInvoke("timeline_init", { seqPath }),
+  sequence_timeline_save: (
+    seqPath: string,
+    timeline: SequenceTimeline,
+  ): Promise<void> =>
+    rawInvoke("sequence_timeline_save", { seqPath, timeline }),
+  shot_clip_media_set: (
+    shotPath: string,
+    mediaPath: string | null,
+  ): Promise<void> =>
+    rawInvoke("shot_clip_media_set", { shotPath, mediaPath }),
+  timeline_export: (params: TimelineExportParams): Promise<void> =>
+    rawInvoke("timeline_export", { params }),
 };

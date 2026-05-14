@@ -45,6 +45,10 @@ pub fn run() {
             commands::metadata::column_delete,
             commands::download::download_to_path,
             commands::media::video_thumbnail_extract,
+            commands::media::timeline_export,
+            commands::session::timeline_init,
+            commands::session::sequence_timeline_save,
+            commands::session::shot_clip_media_set,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
