@@ -6,6 +6,7 @@ import { confirmAction, showMessage } from "./dialog";
 import { useGenerationStore } from "../stores/generationStore";
 import { useModelsStore } from "../stores/modelsStore";
 import { useSessionStore } from "../stores/sessionStore";
+import { useTimelineStore } from "../stores/timelineStore";
 import type {
   ImageMetadata,
   RefImage,
@@ -136,6 +137,8 @@ export type ImageAction =
   | "copy_image"
   | "copy_settings"
   | "copy_prompt"
+  | "copy_to_global_src"
+  | "set_clip_media"
   | "trace"
   | "refresh"
   | "open_location"
@@ -224,6 +227,35 @@ export async function performImageAction(
         await showMessage(String(e), { kind: "error" });
       }
       return;
+    case "copy_to_global_src": {
+      const { shotPath } = session;
+      if (!shotPath) {
+        await showMessage("No shot open", { kind: "warning" });
+        return;
+      }
+      try {
+        await cmd.ref_copy_to_global_src(shotPath, path);
+        await session.rescanShot();
+      } catch (e) {
+        await showMessage(String(e), { kind: "error" });
+      }
+      return;
+    }
+    case "set_clip_media": {
+      const { shotPath } = session;
+      if (!shotPath) {
+        await showMessage("No shot open", { kind: "warning" });
+        return;
+      }
+      try {
+        const tl = useTimelineStore.getState();
+        const current = tl.shotsLatestMedia.get(shotPath)?.clipMediaPath ?? null;
+        await tl.setShotClipMedia(shotPath, current === path ? null : path);
+      } catch (e) {
+        await showMessage(String(e), { kind: "error" });
+      }
+      return;
+    }
     case "copy_settings": {
       const meta = (await cmd
         .image_metadata_read(path)
@@ -232,6 +264,11 @@ export async function performImageAction(
         await showMessage("No metadata for this image", { kind: "warning" });
         return;
       }
+      const ok = await confirmAction(
+        `Reuse prompt and settings from ${basename(path)}? This overwrites the current model, prompts, settings, and refs.`,
+        { title: "Reuse prompt", kind: "warning" },
+      );
+      if (!ok) return;
       const { skippedRefs } = await copySettingsFromMetadata(meta);
       if (skippedRefs) {
         await showMessage(

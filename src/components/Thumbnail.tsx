@@ -203,7 +203,7 @@ export function Thumbnail({
           />
         )}
         <IconBtn name="zoom_in" size={16} title="Zoom" onClick={onZoom} />
-        <IconBtn name="add_photo_alternate" size={16} title="Add to refs" onClick={onAddToRefs} />
+        <IconBtn name="add_photo_alternate" size={16} title="Use as reference" onClick={onAddToRefs} />
         <IconBtn name="copy_all" size={16} title="Reuse prompt" onClick={onCopySettings} />
         {!image.isVideo && onCrop && (
           <IconBtn name="crop" size={16} title="Crop" onClick={onCrop} />
