@@ -4,6 +4,7 @@ import {
   resolveClipMedia,
   useTimelineStore,
 } from "../stores/timelineStore";
+import { useSessionStore } from "../stores/sessionStore";
 import { fileSrc } from "../lib/assets";
 import { TimelineClip } from "./TimelineClip";
 import { TimelineTransport } from "./TimelineTransport";
@@ -20,6 +21,7 @@ export function Timeline() {
   const setPlayheadSec = useTimelineStore((s) => s.setPlayheadSec);
   const pause = useTimelineStore((s) => s.pause);
   const recordVideoDuration = useTimelineStore((s) => s.recordVideoDuration);
+  const timelineHeight = useSessionStore((s) => s.timelineHeight);
 
   const stripRef = useRef<HTMLDivElement>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
@@ -205,7 +207,10 @@ export function Timeline() {
   }, [dropIdx]);
 
   return (
-    <div className="shrink-0 flex h-[45px] bg-panel border border-border overflow-hidden">
+    <div
+      className="shrink-0 flex bg-panel border border-border overflow-hidden"
+      style={{ height: `${timelineHeight}px` }}
+    >
       <div ref={stripRef} className="flex-1 min-w-0 relative flex">
         {empty ? (
           <div className="flex-1 flex items-center justify-center text-dim text-xs">

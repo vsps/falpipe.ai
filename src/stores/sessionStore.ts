@@ -40,6 +40,7 @@ type State = {
   galleryHeight: number;
   thumbColWidth: number;
   logHeight: number;
+  timelineHeight: number;
 };
 
 type Actions = {
@@ -71,6 +72,7 @@ type Actions = {
   setGalleryHeight: (n: number) => void;
   setThumbColWidth: (n: number) => void;
   setLogHeight: (n: number) => void;
+  setTimelineHeight: (n: number) => void;
 };
 
 const GALLERY_H_MIN = 120;
@@ -79,6 +81,8 @@ const THUMB_W_MIN = 154;
 const THUMB_W_MAX = 400;
 const LOG_H_MIN = 24;
 const LOG_H_MAX = 600;
+const TIMELINE_H_MIN = 45;
+const TIMELINE_H_MAX = 400;
 const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, Math.round(n)));
 
@@ -117,6 +121,7 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
   galleryHeight: 400,
   thumbColWidth: THUMB_W_MIN,
   logHeight: 78,
+  timelineHeight: TIMELINE_H_MIN,
 
   async setProject(projectPath) {
     // Rust's list_dirs returns forward-slash paths. Normalize the incoming path
@@ -319,5 +324,8 @@ export const useSessionStore = create<State & Actions>((set, get) => ({
   },
   setLogHeight(n) {
     set({ logHeight: clamp(n, LOG_H_MIN, LOG_H_MAX) });
+  },
+  setTimelineHeight(n) {
+    set({ timelineHeight: clamp(n, TIMELINE_H_MIN, TIMELINE_H_MAX) });
   },
 }));

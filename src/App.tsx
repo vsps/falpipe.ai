@@ -26,6 +26,8 @@ export default function App() {
   const setGalleryHeight = useSessionStore((s) => s.setGalleryHeight);
   const logHeight = useSessionStore((s) => s.logHeight);
   const setLogHeight = useSessionStore((s) => s.setLogHeight);
+  const timelineHeight = useSessionStore((s) => s.timelineHeight);
+  const setTimelineHeight = useSessionStore((s) => s.setTimelineHeight);
 
   useEffect(() => {
     let dispose: (() => void) | null = null;
@@ -68,6 +70,13 @@ export default function App() {
       <SessionBar onOpenSettings={() => setSettingsOpen(true)} />
 
       <Workbench />
+
+      <ResizeBar
+        orientation="horizontal"
+        value={timelineHeight}
+        onChange={setTimelineHeight}
+        grow="up"
+      />
 
       <Timeline />
 
