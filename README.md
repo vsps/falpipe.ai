@@ -15,6 +15,16 @@ Built with React + Tailwind (frontend) on a Rust + Tauri (native) host. Windows 
 
 ENTIRELY VIBE CODED SO GOOD LUCK EVERYBODY!
 
+## Key Features:
+
+- Choice of API providers
+- Many models to choose from, new ones can be added via JSON
+- Image annotation
+- Prompt enhancement
+- Prompt history
+- full metadata sidecar saved with media.
+- **NEW** A simple NLE to edit bash sequences together
+
 ![falPipe](https://github.com/user-attachments/assets/dd66d818-f5a0-4ad3-b5e3-4c6ad7b881c9)
 
 ## CURRENTLY AVAILABLE MODELS
